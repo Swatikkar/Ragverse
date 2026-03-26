@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymupdf
+# chromadb 
+langchain-ollama
+python-multipart
+pillow
+langchain
+langchain-community
+langchain-core
