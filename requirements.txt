@@ -8,3 +8,9 @@ pillow
 langchain
 langchain-community
 langchain-core
+python-docx
+openpyxl
+pandas
+python-pptx
+unstructured[all]
+flashrank
