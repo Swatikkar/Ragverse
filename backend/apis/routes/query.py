@@ -51,7 +51,11 @@ async def query_documents(body: QueryRequest):
             "sources": result["sources"]
         }
 
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

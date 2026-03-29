@@ -4,7 +4,10 @@ from langchain_core.messages import HumanMessage
 from config import VISION_MODEL
 import base64
 
-llm = ChatOllama(model=VISION_MODEL)
+llm = ChatOllama(
+    model=VISION_MODEL,
+    num_ctx=8192
+)
 
 def describe_image(image_b64: str, context: str = "", page_num: int = None) -> str:
 

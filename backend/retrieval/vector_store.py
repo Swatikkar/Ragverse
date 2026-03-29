@@ -1,14 +1,16 @@
 # backend/retrieval/vector_store.py
 from langchain_chroma import Chroma
-from langchain_community.cross_encoders import FlashrankRerank
+# from langchain_community.cross_encoders import FlashrankRerank
+from langchain_community.document_compressors.flashrank_rerank import FlashrankRerank
 from retrieval.embeded import get_embeddings
-from langchain_core.document_loaders import Document
-from config import CHROMA_PATH, TOP_K_RESULTS
+# from langchain_core.document_loaders import Document
+from langchain_core.documents import Document
+from config import CHROMA_DIR, TOP_K_RESULTS
 
 vector_store = Chroma(
     collection_name="documind",
     embedding_function=get_embeddings(),
-    persist_directory=CHROMA_PATH
+    persist_directory=CHROMA_DIR
 )
 
 # Flashrank reranker
@@ -27,12 +29,13 @@ def query_chunks(question: str, n_results: int = TOP_K_RESULTS,
         filter_dict = {"doc_id": {"$in": doc_ids}}
 
     # MMR instead of similarity — balances relevance + diversity
-    results = vector_store.max_marginal_relevance_search_with_score(
+    results = vector_store.max_marginal_relevance_search(
         query=question,
         k=n_results + len(exclude_ids or []),
         fetch_k=20,  # fetch more candidates, MMR picks best diverse subset
         filter=filter_dict
     )
+    results = [(doc, 0.5) for doc in results]
 
     # Exclude cached chunks
     filtered = [

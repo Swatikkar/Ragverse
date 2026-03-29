@@ -6,9 +6,7 @@ from ingestion.image_describer import describe_image
 from ingestion.chunker import chunk_documents, chunk_image_description
 from config import UPLOAD_DIR
 
-def process_document(file_path: str) -> dict:
-    # unique doc_id
-    doc_id = str(uuid.uuid4())
+def process_document(file_path: str,doc_id: str) -> dict:
 
     # Create doc directory in uploads
     doc_dir = os.path.join(UPLOAD_DIR, doc_id)

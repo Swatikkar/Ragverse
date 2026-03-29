@@ -34,11 +34,16 @@ async def upload_document(file: UploadFile = File(...)):
             "image_chunks": result["image_chunks"],
             "total_indexed": stored
         }
-
     except Exception as e:
-        # Cleanup if anything fails
+        import traceback
+        traceback.print_exc()  # prints full stack trace in terminal
         delete_upload(doc_id)
         raise HTTPException(status_code=500, detail=str(e))
+    # except Exception as e:
+    #     # Cleanup if anything fails
+    #     delete_upload(doc_id)
+    #     raise HTTPException(status_code=500, detail=str(e))
+        
 
 
 @router.delete("/document/{doc_id}")

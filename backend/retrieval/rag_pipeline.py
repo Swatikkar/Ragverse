@@ -19,8 +19,8 @@ def build_context(chunks: list) -> str:
         chunk = item["chunk"]
         meta = chunk.metadata
 
-        source_label = f"[Source {i+1}: {meta['doc_name']}, page {meta.get('page_num', 'N/A')}"
-        if meta["type"] == "image":
+        source_label = f"[Source {i+1}: {meta.get('doc_name', 'Unknown')}, page {meta.get('page_num', 'N/A')}"
+        if meta.get("type") == "image":
             source_label += ", image"
         source_label += "]"
 
@@ -83,10 +83,10 @@ Answer with citations:""")
     for item in all_chunks:
         meta = item["chunk"].metadata
         sources.append({
-            "doc_id": meta["doc_id"],
-            "doc_name": meta["doc_name"],
+            "doc_id": meta.get("doc_id", "unknown"),
+            "doc_name": meta.get("doc_name", "unknown"),
             "page_num": meta.get("page_num"),
-            "type": meta["type"],
+            "type": meta.get("type", "text"),
             "image_path": meta.get("image_path"),
             "text_preview": item["chunk"].page_content[:150] + "...",
             "score": item["score"],

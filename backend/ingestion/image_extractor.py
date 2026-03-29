@@ -42,6 +42,7 @@ def _extract_from_pdf(file_path: str, doc_id: str, image_dir: str) -> list:
 
             images.append({
                 "doc_id": doc_id,
+                "doc_name": os.path.basename(file_path),
                 "page_num": page_num + 1,
                 "image_index": img_index,
                 "image_path": image_path,
@@ -68,6 +69,7 @@ def _extract_from_docx(file_path: str, doc_id: str, image_dir: str) -> list:
 
             images.append({
                 "doc_id": doc_id,
+                "doc_name": os.path.basename(file_path),
                 "page_num": None,
                 "section_index": 0,
                 "image_index": img_index,
@@ -96,6 +98,7 @@ def _extract_from_pptx(file_path: str, doc_id: str, image_dir: str) -> list:
 
                 images.append({
                     "doc_id": doc_id,
+                    "doc_name": os.path.basename(file_path),
                     "page_num": None,
                     "slide_index": slide_index + 1,
                     "image_index": img_index,

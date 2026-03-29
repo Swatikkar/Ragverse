@@ -1,2 +1,9 @@
-denv
-.env
+.sfdx/
+__pycache__/
+*.pyc
+chroma_db/
+uploads/
+denv/
+*.env
+node_modules/
+.next/

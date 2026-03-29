@@ -35,5 +35,6 @@ def load_document(file_path: str,doc_id: str) -> list:
         page.metadata["source"] = os.path.basename(file_path)
         page.metadata["file_type"] = ext
         page.metadata["doc_id"] = doc_id
+        print(f"Page metadata: {page.metadata}")
 
     return pages

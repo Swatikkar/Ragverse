@@ -8,7 +8,7 @@ from config import UPLOAD_DIR
 import os
 
 app = FastAPI(
-    title="DocuMind API",
+    title="RAGVerse API",
     description="Multimodal AI Research Assistant",
     version="1.0.0"
 )
@@ -33,7 +33,7 @@ app.include_router(query_router, prefix="/api", tags=["query"])
 @app.get("/")
 async def root():
     return {
-        "message": "DocuMind API is running",
+        "message": "RAGVerse API is running",
         "docs": "/docs"
     }
 
