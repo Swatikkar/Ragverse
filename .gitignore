@@ -1,8 +1,8 @@
 .sfdx/
 __pycache__/
 *.pyc
-chroma_db/
-uploads/
+backend/uploads/
+backend/chroma_db/
 denv/
 *.env
 node_modules/
