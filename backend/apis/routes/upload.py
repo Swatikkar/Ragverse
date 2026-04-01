@@ -1,4 +1,3 @@
-# backend/api/routes/upload.py
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from utils.file_handler import save_upload, delete_upload
 from ingestion.orchestrator import process_document
