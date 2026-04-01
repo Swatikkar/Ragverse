@@ -20,21 +20,24 @@ def load_document(file_path: str,doc_id: str) -> list:
     pages = loader.load()
 
     for i, page in enumerate(pages):
+        page.metadata["doc_id"] = doc_id
+        page.metadata["doc_name"] = os.path.basename(file_path)  # add explicitly
+        page.metadata["file_type"] = ext
+
         if ext == ".pdf":
-            page.metadata["page_num"] = page.metadata.get("page", i + 1)
+            page.metadata["page_num"] = page.metadata.get("page", i) + 1  # fix 0-based
         elif ext in [".csv", ".xlsx"]:
-            page.metadata["page_num"] = None        # row-based, no pages
+            page.metadata["page_num"] = None
             page.metadata["row_index"] = i
         elif ext == ".docx":
-            page.metadata["page_num"] = None        # no reliable page metadata
+            page.metadata["page_num"] = None
             page.metadata["section_index"] = i
         elif ext == ".pptx":
             page.metadata["page_num"] = None
-            page.metadata["slide_index"] = i 
+            page.metadata["slide_index"] = i
 
         page.metadata["source"] = os.path.basename(file_path)
-        page.metadata["file_type"] = ext
-        page.metadata["doc_id"] = doc_id
-        print(f"Page metadata: {page.metadata}")
+
+    print(f"Page metadata: {page.metadata}")
 
     return pages

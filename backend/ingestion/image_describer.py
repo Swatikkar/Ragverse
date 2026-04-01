@@ -11,17 +11,20 @@ llm = ChatOllama(
 
 def describe_image(image_b64: str, context: str = "", page_num: int = None) -> str:
 
-    prompt = f"""You are analyzing an image extracted from a research document.
-Describe this image in detail for research purposes. Include:
-- Type of visual (chart, diagram, photo, table, screenshot etc.)
-- All text, labels, axes, legends visible
-- Key data points or relationships shown
-- What insight this image conveys
+    prompt = f"""Look at this image carefully and describe exactly what you see.
 
-{'Page context: ' + context if context else ''}
-{'Page number: ' + str(page_num) if page_num else ''}
+Be specific and factual:
+- What type of image is this? (logo, QR code, photo, ticket, chart, banner, icon, etc.)
+- What text is visible? Extract ALL text exactly as it appears
+- What information does this image convey?
+- Any numbers, dates, names, places visible?
 
-Be thorough — your description will be used to answer research questions."""
+{('Context from surrounding page: ' + context) if context else ''}
+
+Important:
+- Only describe what you actually see
+- Do not assume or make up information
+- Keep it concise and factual"""
 
     message = HumanMessage(
         content=[
