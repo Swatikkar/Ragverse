@@ -10,10 +10,7 @@ router = APIRouter()
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """
-    Handles file upload, processing and indexing
-    Returns doc_id and processing stats
-    """
+   
     doc_id = str(uuid.uuid4())
 
     try:
@@ -34,23 +31,21 @@ async def upload_document(file: UploadFile = File(...)):
             "image_chunks": result["image_chunks"],
             "total_indexed": stored
         }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()  # prints full stack trace in terminal
-        delete_upload(doc_id)
-        raise HTTPException(status_code=500, detail=str(e))
     # except Exception as e:
-    #     # Cleanup if anything fails
+    #     import traceback
+    #     traceback.print_exc()  # prints full stack trace in terminal
     #     delete_upload(doc_id)
     #     raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Cleanup if anything fails
+        delete_upload(doc_id)
+        raise HTTPException(status_code=500, detail=str(e))
         
 
 
 @router.delete("/document/{doc_id}")
 async def delete_document_route(doc_id: str, session_id: str):
-    """
-    Deletes document from ChromaDB, disk and cache
-    """
+
     try:
         # Remove from ChromaDB
         delete_document(doc_id)
@@ -73,10 +68,7 @@ async def delete_document_route(doc_id: str, session_id: str):
 
 @router.get("/documents")
 async def get_documents():
-    """
-    Returns list of all indexed documents
-    Used to populate document library in frontend
-    """
+
     from retrieval.vector_store import vector_store
 
     try:
@@ -89,7 +81,7 @@ async def get_documents():
             if doc_id and doc_id not in seen:
                 seen[doc_id] = {
                     "doc_id": doc_id,
-                    "doc_name": metadata.get("doc_name"),
+                    "doc_name": metadata.get("doc_name") or metadata.get("source"),
                     "file_type": metadata.get("file_type")
                 }
 
