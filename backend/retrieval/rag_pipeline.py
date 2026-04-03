@@ -1,11 +1,24 @@
-# backend/retrieval/rag_pipeline.py
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from retrieval.vector_store import query_chunks
 from cache.cache_store import get_cached_chunks, add_to_cache
-from config import LLM_MODEL
+from config import ENV, LLM_MODEL
 
-llm = ChatOllama(model=LLM_MODEL)
+def get_llm(streaming=False):
+    if ENV == "local":
+        from langchain_ollama import ChatOllama
+        return ChatOllama(model=LLM_MODEL, streaming=streaming)
+    
+    elif ENV == "production":
+        from langchain_groq import ChatGroq
+        from config import GROQ_API_KEY
+        return ChatGroq(
+            model=LLM_MODEL,
+            api_key=GROQ_API_KEY,
+            streaming=streaming
+        )
+
+llm = get_llm(streaming=False)
+llm_stream = get_llm(streaming=True)
 
 SYSTEM_PROMPT = """You are Ragverse, an intelligent AI assistant.
 
@@ -148,3 +161,91 @@ Answer using your own knowledge:
         })
 
     return {"answer": response.content, "sources": sources}
+
+async def chat_stream(question: str, history: list = []):
+    conversation = build_history(history)
+    messages = [SystemMessage(content=CHAT_SYSTEM_PROMPT)]
+
+    if conversation:
+        messages.append(HumanMessage(
+            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
+        ))
+    messages.append(HumanMessage(content=question))
+
+    async for chunk in llm_stream.astream(messages):
+        if chunk.content:
+            yield chunk.content
+
+async def answer_stream(question: str, doc_ids: list = None,
+                        session_id: str = None, history: list = []):
+    # Step 1 — Get cached chunks
+    cached_chunks = []
+    cached_ids = set()
+
+    if session_id:
+        cached_chunks = get_cached_chunks(session_id, doc_ids)
+        cached_ids = {
+            item["chunk"].metadata.get("chunk_id")
+            for item in cached_chunks
+        }
+
+    # Step 2 — Retrieve new chunks
+    new_chunks = query_chunks(
+        question,
+        n_results=8,
+        doc_ids=doc_ids,
+        exclude_ids=cached_ids
+    )
+
+    if session_id and new_chunks:
+        add_to_cache(session_id, new_chunks)
+
+    all_chunks = cached_chunks + new_chunks
+    all_chunks = sorted(all_chunks, key=lambda x: x["score"], reverse=True)[:10]
+
+    # Step 3 — Build sources first and send immediately
+    sources = []
+    for item in all_chunks:
+        meta = item["chunk"].metadata
+        sources.append({
+            "doc_id": meta.get("doc_id"),
+            "doc_name": meta.get("doc_name") or meta.get("source"),
+            "page_num": meta.get("page_num"),
+            "type": meta.get("type", "text"),
+            "image_path": meta.get("image_path"),
+            "text_preview": item["chunk"].page_content[:150] + "...",
+            "score": item["score"],
+            "from_cache": item.get("from_cache", False)
+        })
+
+    # Send sources before streaming answer
+    yield {"type": "sources", "sources": sources}
+
+    # Step 4 — Build messages
+    conversation = build_history(history)
+    messages = [SystemMessage(content=SYSTEM_PROMPT)]
+
+    if conversation:
+        messages.append(HumanMessage(
+            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
+        ))
+
+    if all_chunks:
+        context = build_context(all_chunks)
+        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the active documents:
+
+{context}
+
+Now answer this question using both the document excerpts AND your own knowledge where helpful:
+{question}"""))
+    else:
+        messages.append(HumanMessage(
+            content=f"""No relevant document excerpts found.
+Answer using your own knowledge:
+{question}"""
+        ))
+
+    # Step 5 — Stream LLM response
+    async for chunk in llm_stream.astream(messages):
+        if chunk.content:
+            yield {"type": "chunk", "content": chunk.content}

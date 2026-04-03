@@ -17,3 +17,9 @@ flashrank
 networkx
 docx2txt
 msoffcrypto-tool
+python-magic-bin
+python-dotenv
+langchain-cohere
+cohere
+langchain-google-genai
+langchain-groq

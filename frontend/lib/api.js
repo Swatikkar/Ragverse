@@ -31,8 +31,8 @@ export async function deleteDocument(docId, sessionId) {
 }
 
 // Query documents
-export async function queryDocuments(question, sessionId, docIds = null, history = []) {
-  const res = await fetch(`${BASE_URL}/query`, {
+export async function queryDocuments(question, sessionId, docIds = null, history = [], onChunk, onSources) {
+  const response = await fetch(`${BASE_URL}/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -45,8 +45,37 @@ export async function queryDocuments(question, sessionId, docIds = null, history
       }))
     }),
   });
-  if (!res.ok) throw new Error("Query failed");
-  return res.json();
+
+  if (!response.ok) throw new Error("Query failed");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const text = decoder.decode(value);
+    const lines = text.split("\n");
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const data = line.slice(6);
+        if (data === "[DONE]") break;
+
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === "chunk") {
+            onChunk(parsed.content);
+          } else if (parsed.type === "sources") {
+            onSources(parsed.sources);
+          }
+        } catch (e) {
+          // skip malformed chunks
+        }
+      }
+    }
+  }
 }
 
 // Activate a document

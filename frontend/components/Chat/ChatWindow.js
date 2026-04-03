@@ -16,44 +16,57 @@ export default function ChatWindow({ onSourcesUpdate }) {
   }, [messages]);
 
   async function handleQuery(question) {
-    if (!question.trim()) return;
+  if (!question.trim()) return;
 
-    // Add user message
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: question },
-    ]);
+  setMessages((prev) => [...prev, { role: "user", content: question }]);
+  setLoading(true);
 
-    setLoading(true);
+  // Add empty assistant message that will be filled as stream comes in
+  setMessages((prev) => [...prev, { role: "assistant", content: "", sources: [] }]);
 
-    try {
-      const res = await queryDocuments(question, sessionId,null,messages);
-
-      // Add assistant message
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: res.answer,
-          sources: res.sources,
-        },
-      ]);
-
-      // Update source panel
-      onSourcesUpdate(res.sources || []);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Something went wrong. Please try again.",
-          sources: [],
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+  try {
+    await queryDocuments(
+      question,
+      sessionId,
+      null,
+      messages,
+      // onChunk — append each chunk to last message
+      (chunk) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          updated[updated.length - 1] = {
+            ...last,
+            content: last.content + chunk
+          };
+          return updated;
+        });
+      },
+      // onSources — update sources when received
+      (sources) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          updated[updated.length - 1] = { ...last, sources };
+          return updated;
+        });
+        onSourcesUpdate(sources);
+      }
+    );
+  } catch (err) {
+    setMessages((prev) => {
+      const updated = [...prev];
+      updated[updated.length - 1] = {
+        role: "assistant",
+        content: "Something went wrong. Please try again.",
+        sources: []
+      };
+      return updated;
+    });
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <div className="flex flex-col h-full bg-gray-950">

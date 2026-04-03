@@ -1,16 +1,22 @@
-# backend/ingestion/image_describer.py
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
-from config import VISION_MODEL
-import base64
+from config import ENV, VISION_MODEL
 
-llm = ChatOllama(
-    model=VISION_MODEL,
-    num_ctx=8192
-)
+def get_vision_llm():
+    if ENV == "local":
+        from langchain_ollama import ChatOllama
+        return ChatOllama(model=VISION_MODEL)
+    
+    elif ENV == "production":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        from config import GEMINI_API_KEY
+        return ChatGoogleGenerativeAI(
+            model=VISION_MODEL,
+            google_api_key=GEMINI_API_KEY
+        )
+
+llm = get_vision_llm()
 
 def describe_image(image_b64: str, context: str = "", page_num: int = None) -> str:
-
     prompt = f"""Look at this image carefully and describe exactly what you see.
 
 Be specific and factual:
@@ -24,6 +30,7 @@ Be specific and factual:
 Important:
 - Only describe what you actually see
 - Do not assume or make up information
+- Do not call this a research document
 - Keep it concise and factual"""
 
     message = HumanMessage(

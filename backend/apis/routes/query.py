@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from retrieval.rag_pipeline import answer
+from retrieval.rag_pipeline import answer, chat, answer_stream, chat_stream
 from cache.cache_manager import (
     activate_doc,
     deactivate_doc,
@@ -9,6 +10,7 @@ from cache.cache_manager import (
     end_session,
     get_session_stats
 )
+import json
 
 router = APIRouter()
 
@@ -28,30 +30,52 @@ class DeactivateDocRequest(BaseModel):
     doc_id: str
 
 @router.post("/query")
-@router.post("/query")
 async def query_documents(body: QueryRequest):
     try:
         doc_ids = body.doc_ids
         if not doc_ids and body.session_id:
             doc_ids = get_active_doc_ids(body.session_id)
 
-        # No active docs → normal chat mode
         if not doc_ids:
-            from retrieval.rag_pipeline import chat
-            result = chat(body.question, history=body.history or [])
-        else:
-            result = answer(
-                question=body.question,
-                doc_ids=doc_ids,
-                session_id=body.session_id,
-                history=body.history or []
-            )
+            # Normal chat mode — streaming
+            async def stream_chat():
+                sources = []
+                async for chunk in chat_stream(
+                    body.question,
+                    history=body.history or []
+                ):
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+                yield "data: [DONE]\n\n"
 
-        return {
-            "success": True,
-            "answer": result["answer"],
-            "sources": result["sources"]
-        }
+            return StreamingResponse(
+                stream_chat(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no"
+                }
+            )
+        else:
+            # RAG mode — streaming
+            async def stream_rag():
+                async for event in answer_stream(
+                    question=body.question,
+                    doc_ids=doc_ids,
+                    session_id=body.session_id,
+                    history=body.history or []
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                stream_rag(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no"
+                }
+            )
 
     except Exception as e:
         import traceback
