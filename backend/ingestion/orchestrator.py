@@ -1,4 +1,4 @@
-import uuid
+# import uuid
 import os
 from ingestion.document_loader import load_document
 from ingestion.image_extractor import extract_images
