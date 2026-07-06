@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from apis.routes.upload import router as upload_router
 from apis.routes.query import router as query_router
+from apis.routes.auth import router as auth_router
 from config import UPLOAD_DIR
 import os
 
@@ -17,8 +18,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "https://ragverse.vercel.app",
+        origin.strip()
+        for origin in os.getenv(
+            "BACKEND_CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173,https://ragverse.vercel.app",
+        ).split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -26,10 +31,10 @@ app.add_middleware(
 )
 
 # Serve uploaded images statically
-# Frontend can access images via /uploads/{doc_id}/images/{filename}
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Routers
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(upload_router, prefix="/api", tags=["upload"])
 app.include_router(query_router, prefix="/api", tags=["query"])
 

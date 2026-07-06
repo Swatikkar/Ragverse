@@ -1,103 +1,83 @@
-# import os
-# from dotenv import load_dotenv
-
-# load_dotenv()
-
-# # Environment
-# ENV = (os.getenv("ENV") or os.getenv("RAILWAY_ENVIRONMENT_NAME", "local")).lower()
-
-# UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
-# CHROMA_DIR = os.getenv("CHROMA_DIR", "/app/chroma_db")
-# CACHE_DIR = os.getenv("CACHE_DIR", "/app/cache")
-
-# # Paths
-# UPLOAD_DIR = "./uploads"
-# CHROMA_DIR = "./chroma_db"
-# CACHE_DIR = "./cache"
-
-# # Chunking
-# CHUNKING_STRATEGY = "recursive"
-# CHUNK_SIZE = 500
-# CHUNK_OVERLAP = 50
-
-# # Upload settings
-# MAX_FILE_SIZE_MB = 10
-# MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-# ALLOWED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv", ".pptx"]
-
-# # RAG settings
-# TOP_K_RESULTS = 8
-
-# if ENV == "local":
-#     # Ollama local models
-#     LLM_MODEL = "llama3.2"
-#     VISION_MODEL = "qwen3-vl:2b"
-#     EMBEDDING_MODEL = "nomic-embed-text"
-#     # OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    
-#     # API keys not needed locally
-#     GROQ_API_KEY = None
-#     GEMINI_API_KEY = None
-#     COHERE_API_KEY = None
-
-# elif ENV == "production":
-#     # Cloud free tier models
-#     LLM_MODEL = "llama-3.3-70b-versatile"
-#     VISION_MODEL = "gemini-2.5-flash"
-#     EMBEDDING_MODEL = "embed-english-light-v3.0"
-#     OLLAMA_BASE_URL = None
-
-#     # API keys from environment
-#     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-#     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-#     COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-
-# # Create dirs if they don't exist
-# for path in [UPLOAD_DIR, CHROMA_DIR, CACHE_DIR]:
-#     os.makedirs(path, exist_ok=True)
-
-
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
 
-ENV = (os.getenv("ENV") or os.getenv("RAILWAY_ENVIRONMENT_NAME", "local")).lower()
+load_dotenv(BASE_DIR / ".env")
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
-CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_db")
-CACHE_DIR = os.getenv("CACHE_DIR", "./cache")
+
+def env_value(name: str, default: str | None = None) -> str | None:
+    value = os.getenv(name, default)
+    if value is None:
+        return None
+    return value.strip().strip('"').strip("'").strip()
+
+
+ENV = (env_value("ENV") or env_value("RAILWAY_ENVIRONMENT_NAME", "local")).lower()
+IS_PRODUCTION = ENV == "production"
+AUTH_PROVIDER = env_value("AUTH_PROVIDER", "supabase" if IS_PRODUCTION else "local").lower()
+STORAGE_MODE = env_value("STORAGE_MODE", "supabase" if IS_PRODUCTION else "local").lower()
+DATABASE_URL = env_value("DATABASE_URL")
+SQLITE_DB_PATH = env_value("SQLITE_DB_PATH", "./data/ragverse.db")
+SUPABASE_URL = env_value("SUPABASE_URL")
+SUPABASE_KEY = env_value("SUPABASE_KEY")
+SUPABASE_BUCKET = env_value("SUPABASE_BUCKET", "ragverse")
+
+JWT_SECRET_KEY = env_value("JWT_SECRET_KEY")
+JWT_ALGORITHM = env_value("JWT_ALGORITHM", "HS256")
+JWT_EXPIRY_MINUTES = int(env_value("JWT_EXPIRY_MINUTES", "1440"))
+
+UPLOAD_DIR = env_value("UPLOAD_DIR", "./uploads")
+CHROMA_DIR = env_value("CHROMA_DIR", "./chroma_db")
+CACHE_DIR = env_value("CACHE_DIR", "./cache")
 
 CHUNKING_STRATEGY = "recursive"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = int(env_value("MAX_FILE_SIZE_MB", "10"))
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-ALLOWED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv", ".pptx"]
+MAX_AUDIO_SIZE_MB = int(env_value("MAX_AUDIO_SIZE_MB", "25"))
+MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_MB * 1024 * 1024
+MAX_URL_BYTES = int(env_value("MAX_URL_BYTES", "2000000"))
+URL_TIMEOUT_SECONDS = float(env_value("URL_TIMEOUT_SECONDS", "10"))
+URL_MAX_REDIRECTS = int(env_value("URL_MAX_REDIRECTS", "4"))
+
+DOCUMENT_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv", ".pptx"]
+AUDIO_EXTENSIONS = [".mp3", ".wav", ".m4a", ".ogg", ".webm", ".mp4"]
+ALLOWED_EXTENSIONS = DOCUMENT_EXTENSIONS + AUDIO_EXTENSIONS
 
 TOP_K_RESULTS = 8
 
-if ENV == "local":
-    LLM_MODEL = "llama3.2"
-    VISION_MODEL = "qwen3-vl:2b"
-    EMBEDDING_MODEL = "nomic-embed-text"
-    GROQ_API_KEY = None
-    GEMINI_API_KEY = None
-    COHERE_API_KEY = None
-    # OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+RAG_CHAT_MODELS = env_value(
+    "RAG_CHAT_MODELS",
+    "groq:llama-3.3-70b-versatile,gemini:gemini-2.5-flash,ollama:llama3.2",
+)
+VISION_MODELS = env_value(
+    "VISION_MODELS",
+    "gemini:gemini-2.5-flash,ollama:qwen3-vl:2b",
+)
+TRANSCRIPTION_MODELS = env_value("TRANSCRIPTION_MODELS", "groq:whisper-large-v3-turbo")
+EMBEDDING_MODELS = env_value(
+    "EMBEDDING_MODELS",
+    "gemini:gemini-embedding-001,cohere:embed-english-light-v3.0,ollama:nomic-embed-text",
+)
 
-elif ENV == "production":
-    LLM_MODEL = "llama-3.3-70b-versatile"
-    VISION_MODEL = "gemini-2.5-flash"
-    EMBEDDING_MODEL = "embed-english-light-v3.0"
-    OLLAMA_BASE_URL = None
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+OLLAMA_BASE_URL = env_value("OLLAMA_BASE_URL", "http://localhost:11434")
+PROVIDER_TIMEOUT_SECONDS = float(env_value("PROVIDER_TIMEOUT_SECONDS", "30"))
+PROVIDER_MAX_RETRIES = int(env_value("PROVIDER_MAX_RETRIES", "0"))
+MODEL_TEMPERATURE = float(env_value("MODEL_TEMPERATURE", "0.1"))
 
-else:
-    raise ValueError(f"Unsupported ENV: {ENV}")
+GROQ_API_KEY = env_value("GROQ_API_KEY")
+GEMINI_API_KEY = env_value("GEMINI_API_KEY")
+COHERE_API_KEY = env_value("COHERE_API_KEY")
 
-for path in [UPLOAD_DIR, CHROMA_DIR, CACHE_DIR]:
+def resolve_backend_path(path: str) -> str:
+    return path if os.path.isabs(path) else str(BASE_DIR / path)
+
+
+SQLITE_DB_PATH = resolve_backend_path(SQLITE_DB_PATH)
+
+for path in [UPLOAD_DIR, CHROMA_DIR, CACHE_DIR, os.path.dirname(SQLITE_DB_PATH) or "."]:
     os.makedirs(path, exist_ok=True)

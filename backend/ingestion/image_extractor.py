@@ -1,14 +1,17 @@
-import fitz  # for pdf images
+# backend/ingestion/image_extractor.py
+import fitz
 import os
 import base64
-from docx import Document  # for docx images
-from pptx import Presentation # for pptx images
+from docx import Document
+from pptx import Presentation
 from config import UPLOAD_DIR
 
-def extract_images(file_path: str, doc_id: str) -> list:
+
+def extract_images(file_path: str, doc_id: str, user_id: str) -> list:
     ext = os.path.splitext(file_path)[-1].lower()
-    
-    image_dir = os.path.join(UPLOAD_DIR, doc_id, "images")
+
+    # Scoped by user_id/doc_id
+    image_dir = os.path.join(UPLOAD_DIR, user_id, doc_id, "images")
     os.makedirs(image_dir, exist_ok=True)
 
     if ext == ".pdf":
@@ -18,21 +21,23 @@ def extract_images(file_path: str, doc_id: str) -> list:
     elif ext == ".pptx":
         return _extract_from_pptx(file_path, doc_id, image_dir)
     else:
-        return []  # CSV, XLSX — no images
+        return []
+
 
 def _save_image(image_bytes: bytes, image_path: str) -> str:
     with open(image_path, "wb") as f:
         f.write(image_bytes)
     return image_path
 
+
 def _extract_from_pdf(file_path: str, doc_id: str, image_dir: str) -> list:
     doc = fitz.open(file_path)
     images = []
 
     for page_num, page in enumerate(doc):
-        for img_index, img in enumerate(page.get_images(full=True)):  # list of image references (xref).
+        for img_index, img in enumerate(page.get_images(full=True)):
             xref = img[0]
-            base_image = doc.extract_image(xref)  #extracts bytes and format
+            base_image = doc.extract_image(xref)
             image_bytes = base_image["image"]
             ext = base_image["ext"]
 
@@ -46,12 +51,13 @@ def _extract_from_pdf(file_path: str, doc_id: str, image_dir: str) -> list:
                 "page_num": page_num + 1,
                 "image_index": img_index,
                 "image_path": image_path,
-                "image_b64": base64.b64encode(image_bytes).decode("utf-8"), # can be directly feed into json and to vision model.
+                "image_b64": base64.b64encode(image_bytes).decode("utf-8"),
                 "source": "pdf"
             })
 
     doc.close()
     return images
+
 
 def _extract_from_docx(file_path: str, doc_id: str, image_dir: str) -> list:
     doc = Document(file_path)
@@ -81,6 +87,7 @@ def _extract_from_docx(file_path: str, doc_id: str, image_dir: str) -> list:
 
     return images
 
+
 def _extract_from_pptx(file_path: str, doc_id: str, image_dir: str) -> list:
     prs = Presentation(file_path)
     images = []
@@ -88,7 +95,7 @@ def _extract_from_pptx(file_path: str, doc_id: str, image_dir: str) -> list:
     for slide_index, slide in enumerate(prs.slides):
         img_index = 0
         for shape in slide.shapes:
-            if shape.shape_type == 13:  # MSO_SHAPE_TYPE.PICTURE
+            if shape.shape_type == 13:
                 image_bytes = shape.image.blob
                 ext = shape.image.ext
 

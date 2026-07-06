@@ -42,6 +42,8 @@ export default function DocumentList({
   }
 
   function getIcon(fileType) {
+    if (fileType === "url") return "URL";
+    if (["mp3", "wav", "m4a", "ogg", "webm", "mp4"].includes(fileType)) return "AUD";
     return FILE_ICONS[fileType] || FILE_ICONS.default;
   }
 

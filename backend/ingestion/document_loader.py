@@ -23,6 +23,7 @@ def load_document(file_path: str,doc_id: str) -> list:
         page.metadata["doc_id"] = doc_id
         page.metadata["doc_name"] = os.path.basename(file_path)  # add explicitly
         page.metadata["file_type"] = ext
+        page.metadata["source_type"] = "document"
 
         if ext == ".pdf":
             page.metadata["page_num"] = page.metadata.get("page", i) + 1  # fix 0-based
