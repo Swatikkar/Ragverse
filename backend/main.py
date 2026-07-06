@@ -14,7 +14,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS — allows Next.js frontend to talk to FastAPI
+# CORS allows the React/Vite frontend to talk to FastAPI.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

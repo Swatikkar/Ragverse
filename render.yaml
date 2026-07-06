@@ -1,9 +1,11 @@
 services:
   - type: web
     name: ragverse-api
-    env: docker
+    runtime: docker
     rootDir: backend
+    branch: main
     plan: free
+    autoDeployTrigger: commit
     healthCheckPath: /health
     envVars:
       - key: ENV
@@ -30,3 +32,11 @@ services:
         sync: false
       - key: COHERE_API_KEY
         sync: false
+      - key: RAG_CHAT_MODELS
+        value: groq:llama-3.3-70b-versatile,gemini:gemini-2.5-flash
+      - key: VISION_MODELS
+        value: gemini:gemini-2.5-flash
+      - key: TRANSCRIPTION_MODELS
+        value: groq:whisper-large-v3-turbo
+      - key: EMBEDDING_MODELS
+        value: gemini:gemini-embedding-001,cohere:embed-english-light-v3.0

@@ -14,7 +14,7 @@ def env_value(name: str, default: str | None = None) -> str | None:
     return value.strip().strip('"').strip("'").strip()
 
 
-ENV = (env_value("ENV") or env_value("RAILWAY_ENVIRONMENT_NAME", "local")).lower()
+ENV = env_value("ENV", "local").lower()
 IS_PRODUCTION = ENV == "production"
 AUTH_PROVIDER = env_value("AUTH_PROVIDER", "supabase" if IS_PRODUCTION else "local").lower()
 STORAGE_MODE = env_value("STORAGE_MODE", "supabase" if IS_PRODUCTION else "local").lower()
