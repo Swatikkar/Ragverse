@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="660" viewBox="0 0 1180 660" role="img" aria-labelledby="title desc">
+  <title id="title">Ragverse guardrail test output</title>
+  <desc id="desc">Terminal-style evidence showing supported source validation and blocked unsafe inputs.</desc>
+  <rect width="1180" height="660" fill="#08111f"/>
+  <rect x="28" y="28" width="1124" height="604" rx="14" fill="#0f172a" stroke="#2b3a55"/>
+  <circle cx="58" cy="58" r="7" fill="#ef4444"/>
+  <circle cx="82" cy="58" r="7" fill="#f59e0b"/>
+  <circle cx="106" cy="58" r="7" fill="#22c55e"/>
+  <text x="132" y="64" font-family="Consolas, 'Courier New', monospace" font-size="18" fill="#cbd5e1">backend/tests/guardrail_check.py</text>
+  <g font-family="Consolas, 'Courier New', monospace" font-size="18">
+    <text x="58" y="108" fill="#94a3b8">&gt; .\denv\Scripts\python.exe tests\guardrail_check.py</text>
+    <text x="58" y="144" fill="#86efac">PASS pdf validation accepted</text>
+    <text x="58" y="172" fill="#86efac">PASS csv validation accepted</text>
+    <text x="58" y="200" fill="#86efac">PASS docx validation accepted</text>
+    <text x="58" y="228" fill="#86efac">PASS xlsx validation accepted</text>
+    <text x="58" y="256" fill="#86efac">PASS pptx validation accepted</text>
+    <text x="58" y="284" fill="#86efac">PASS wav validation accepted</text>
+    <text x="58" y="312" fill="#86efac">PASS mp3, m4a, ogg, webm, mp4 validation accepted</text>
+    <text x="58" y="340" fill="#93c5fd">PASS corrupted wav rejected: content does not match extension</text>
+    <text x="58" y="368" fill="#93c5fd">PASS empty upload rejected: File is empty</text>
+    <text x="58" y="396" fill="#93c5fd">PASS unsupported extension rejected: .exe blocked</text>
+    <text x="58" y="424" fill="#93c5fd">PASS fake extension rejected: WAV bytes renamed to PDF blocked</text>
+    <text x="58" y="452" fill="#fca5a5">PASS file scheme URL blocked</text>
+    <text x="58" y="480" fill="#fca5a5">PASS localhost, private IP, metadata URL blocked</text>
+    <text x="58" y="508" fill="#fca5a5">PASS unresolvable URL host blocked</text>
+    <text x="58" y="536" fill="#fca5a5">PASS thin HTML rejected</text>
+    <text x="58" y="592" fill="#86efac">All guardrail checks passed.</text>
+  </g>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">Ragverse source coverage evidence</title>
+  <desc id="desc">Evidence matrix for supported document, audio, and URL source types.</desc>
+  <rect width="1180" height="520" fill="#f8fafc"/>
+  <text x="54" y="70" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700" fill="#111827">Supported Source Coverage</text>
+  <text x="54" y="105" font-family="Inter, Arial, sans-serif" font-size="18" fill="#475569">Validation and ingestion paths verified for document, audio, and URL knowledge sources.</text>
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="54" y="142" width="1072" height="66" rx="8" fill="#111827"/>
+    <text x="82" y="183" font-size="19" font-weight="700" fill="#ffffff">Source</text>
+    <text x="312" y="183" font-size="19" font-weight="700" fill="#ffffff">Inputs</text>
+    <text x="638" y="183" font-size="19" font-weight="700" fill="#ffffff">Processing</text>
+    <text x="954" y="183" font-size="19" font-weight="700" fill="#ffffff">Evidence</text>
+
+    <rect x="54" y="214" width="1072" height="74" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+    <text x="82" y="258" font-size="18" font-weight="700" fill="#0f172a">Documents</text>
+    <text x="312" y="258" font-size="17" fill="#334155">PDF, DOCX, XLSX, CSV, PPTX</text>
+    <text x="638" y="246" font-size="17" fill="#334155">Loader + chunker + Chroma</text>
+    <text x="638" y="270" font-size="15" fill="#64748b">Per-user document metadata</text>
+    <text x="954" y="258" font-size="18" font-weight="700" fill="#15803d">PASS</text>
+
+    <rect x="54" y="300" width="1072" height="74" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+    <text x="82" y="344" font-size="18" font-weight="700" fill="#0f172a">Audio</text>
+    <text x="312" y="344" font-size="17" fill="#334155">MP3, WAV, M4A, OGG, WEBM, MP4</text>
+    <text x="638" y="332" font-size="17" fill="#334155">Whisper transcription</text>
+    <text x="638" y="356" font-size="15" fill="#64748b">Transcript chunked as RAG text</text>
+    <text x="954" y="344" font-size="18" font-weight="700" fill="#15803d">PASS</text>
+
+    <rect x="54" y="386" width="1072" height="74" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+    <text x="82" y="430" font-size="18" font-weight="700" fill="#0f172a">URL</text>
+    <text x="312" y="430" font-size="17" fill="#334155">Public HTTP/HTTPS pages</text>
+    <text x="638" y="418" font-size="17" fill="#334155">SSRF guardrails + readable extraction</text>
+    <text x="638" y="442" font-size="15" fill="#64748b">Scripts, styles, nav, and footer removed</text>
+    <text x="954" y="430" font-size="18" font-weight="700" fill="#15803d">PASS</text>
+  </g>
+</svg>
