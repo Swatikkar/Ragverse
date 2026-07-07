@@ -1,5 +1,5 @@
 create table if not exists public.users (
-  id text primary key,
+  id uuid primary key,
   email text not null unique,
   hashed_password text not null,
   full_name text,
@@ -10,7 +10,7 @@ create table if not exists public.users (
 
 create table if not exists public.documents (
   doc_id text primary key,
-  user_id text not null references public.users(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
   doc_name text not null,
   source_type text not null default 'document',
   file_type text,
@@ -24,7 +24,7 @@ create table if not exists public.documents (
 create table if not exists public.document_artifacts (
   id bigserial primary key,
   doc_id text not null references public.documents(doc_id) on delete cascade,
-  user_id text not null references public.users(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
   artifact_type text not null,
   storage_path text,
   content_type text,
@@ -35,7 +35,7 @@ create table if not exists public.document_artifacts (
 create table if not exists public.document_chunks (
   id bigserial primary key,
   doc_id text not null references public.documents(doc_id) on delete cascade,
-  user_id text not null references public.users(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
   chunk_id text not null,
   chunk_index integer not null default 0,
   type text not null default 'text',
@@ -48,3 +48,8 @@ create index if not exists users_email_idx on public.users(email);
 create index if not exists documents_user_id_idx on public.documents(user_id);
 create index if not exists document_artifacts_user_doc_idx on public.document_artifacts(user_id, doc_id);
 create index if not exists document_chunks_user_doc_idx on public.document_chunks(user_id, doc_id);
+
+alter table public.users enable row level security;
+alter table public.documents enable row level security;
+alter table public.document_artifacts enable row level security;
+alter table public.document_chunks enable row level security;
