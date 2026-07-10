@@ -6,7 +6,10 @@ from apis.routes.upload import router as upload_router
 from apis.routes.query import router as query_router
 from apis.routes.auth import router as auth_router
 from config import UPLOAD_DIR
+from utils.migrations import run_production_migrations
 import os
+
+run_production_migrations()
 
 app = FastAPI(
     title="RAGVerse API",

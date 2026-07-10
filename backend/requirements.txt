@@ -20,6 +20,7 @@ docx2txt
 msoffcrypto-tool
 filetype
 python-dotenv
+psycopg[binary]
 langchain-cohere
 cohere
 langchain-google-genai
