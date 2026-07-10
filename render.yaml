@@ -3,7 +3,7 @@ services:
     name: ragverse-api
     runtime: docker
     rootDir: backend
-    branch: main
+    branch: production
     plan: free
     autoDeployTrigger: commit
     healthCheckPath: /health
