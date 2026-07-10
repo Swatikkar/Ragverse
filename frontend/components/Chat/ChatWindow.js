@@ -1,19 +1,40 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { queryDocuments, getSessionId } from "@/lib/api";
+import { getChatMessages, queryDocuments } from "@/lib/api";
 import MessageBubble from "./MessageBubble.js";
 import ChatInput from "./ChatInput";
 
-export default function ChatWindow({ onSourcesUpdate }) {
+export default function ChatWindow({ sessionId, activeDocs, onSourcesUpdate }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
-  const sessionId = getSessionId();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem("ragverse_chat_messages", JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    async function restoreMessages() {
+      try {
+        const res = await getChatMessages(sessionId);
+        if (res.messages?.length) {
+          setMessages(res.messages.map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+            sources: msg.sources || [],
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to restore chat messages", err);
+      }
+    }
+    restoreMessages();
+  }, [sessionId]);
 
   async function handleQuery(question) {
   if (!question.trim()) return;
@@ -28,7 +49,7 @@ export default function ChatWindow({ onSourcesUpdate }) {
     await queryDocuments(
       question,
       sessionId,
-      null,
+      activeDocs.map((doc) => doc.doc_id),
       messages,
       // onChunk — append each chunk to last message
       (chunk) => {

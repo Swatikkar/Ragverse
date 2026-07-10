@@ -3,8 +3,11 @@ __pycache__/
 *.pyc
 backend/uploads/
 backend/chroma_db/
+backend/data/
 denv/
 *.env
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+frontend/dist/
+test-assets/

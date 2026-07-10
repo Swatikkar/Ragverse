@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+email-validator
 pymupdf
 # chromadb 
 langchain-chroma
@@ -14,15 +15,18 @@ python-docx
 openpyxl
 pandas
 python-pptx
-unstructured[all]
-flashrank
 networkx
 docx2txt
 msoffcrypto-tool
-# python-magic-bin
-python-magic
+filetype
 python-dotenv
 langchain-cohere
 cohere
 langchain-google-genai
 langchain-groq
+groq
+PyJWT
+supabase
+bcrypt
+requests
+beautifulsoup4

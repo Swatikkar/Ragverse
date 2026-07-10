@@ -12,12 +12,8 @@ export default function MessageBubble({ message }) {
             : "bg-gray-900 text-gray-200 rounded-tl-sm border border-gray-800"
         }`}
       >
-        {/* Message content */}
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-          {message.content}
-        </p>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 
-        {/* Citations */}
         {message.sources && message.sources.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-700 flex flex-wrap gap-1.5">
             {message.sources.map((source, i) => (
@@ -30,9 +26,12 @@ export default function MessageBubble({ message }) {
                 }`}
                 title={`Score: ${source.score}`}
               >
-                {source.doc_name} · p{source.page_num || "?"}
-                {source.type === "image" && " · img"}
-                {source.from_cache && " · cached"}
+                {source.doc_name}
+                {source.page_num ? ` p${source.page_num}` : ""}
+                {source.source_type === "url" && " url"}
+                {source.source_type === "audio" && " audio"}
+                {source.type === "image" && " img"}
+                {source.from_cache && " cached"}
               </span>
             ))}
           </div>

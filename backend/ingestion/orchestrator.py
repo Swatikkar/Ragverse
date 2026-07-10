@@ -1,21 +1,29 @@
-# import uuid
+# backend/ingestion/orchestrator.py
 import os
+from fastapi import HTTPException
+from config import AUDIO_EXTENSIONS
+from ingestion.audio_loader import load_audio_transcript
 from ingestion.document_loader import load_document
 from ingestion.image_extractor import extract_images
 from ingestion.image_describer import describe_image
 from ingestion.chunker import chunk_documents, chunk_image_description
-from config import UPLOAD_DIR
 
-def process_document(file_path: str,doc_id: str) -> dict:
 
-    # Create doc directory in uploads
-    doc_dir = os.path.join(UPLOAD_DIR, doc_id)
-    os.makedirs(doc_dir, exist_ok=True)
+def process_document(file_path: str, doc_id: str, user_id: str) -> dict:
 
+    # Doc directory already created by save_upload
     ext = os.path.splitext(file_path)[-1].lower()
 
     # Step 1 — Load text via LangChain
-    pages = load_document(file_path, doc_id)
+    try:
+        if ext in AUDIO_EXTENSIONS:
+            pages = load_audio_transcript(file_path, doc_id)
+        else:
+            pages = load_document(file_path, doc_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise ValueError(f"Could not process this source safely: {exc}") from exc
 
     # Step 2 — Chunk text pages
     text_chunks = chunk_documents(pages)
@@ -23,7 +31,7 @@ def process_document(file_path: str,doc_id: str) -> dict:
     # Step 3 — Extract images (PDF, DOCX, PPTX only)
     image_chunks = []
     if ext in [".pdf", ".docx", ".pptx"]:
-        images = extract_images(file_path, doc_id)
+        images = extract_images(file_path, doc_id, user_id)
 
         for image in images:
             # Get context text from same page
@@ -51,9 +59,10 @@ def process_document(file_path: str,doc_id: str) -> dict:
 
     return {
         "doc_id": doc_id,
+        "user_id": user_id,
         "doc_name": os.path.basename(file_path),
         "text_chunks": len(text_chunks),
         "image_chunks": len(image_chunks),
         "total_chunks": len(all_chunks),
-        "chunks": all_chunks  # passed to vector_store next
+        "chunks": all_chunks
     }
