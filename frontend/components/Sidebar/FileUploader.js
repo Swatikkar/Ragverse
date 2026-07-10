@@ -34,7 +34,7 @@ export default function FileUploader({ sessionId, onUploaded }) {
       });
     } catch (err) {
       console.error(err);
-      setError("Upload failed. Try again.");
+      setError(err.message || "Upload failed. Try again.");
     } finally {
       setUploading(false);
       inputRef.current.value = "";
@@ -54,12 +54,25 @@ export default function FileUploader({ sessionId, onUploaded }) {
 
   async function handleUrlSubmit(e) {
     e.preventDefault();
-    if (!url.trim()) return;
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return;
+
+    try {
+      const parsedUrl = new URL(trimmedUrl);
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        setError("Enter a valid http(s) URL.");
+        return;
+      }
+    } catch {
+      setError("Enter a valid http(s) URL.");
+      return;
+    }
+
     setUrlLoading(true);
     setError(null);
 
     try {
-      const res = await ingestUrl(url.trim());
+      const res = await ingestUrl(trimmedUrl);
       onUploaded({
         doc_id: res.doc_id,
         doc_name: res.doc_name,
@@ -119,7 +132,7 @@ export default function FileUploader({ sessionId, onUploaded }) {
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          type="url"
+          type="text"
           placeholder="https://example.com/article"
           className="min-w-0 flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-500"
         />
