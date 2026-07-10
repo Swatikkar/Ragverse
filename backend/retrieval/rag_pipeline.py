@@ -24,16 +24,23 @@ Guidelines:
 CHAT_SYSTEM_PROMPT = """You are Ragverse, a helpful and friendly AI assistant.
 Answer questions naturally using your own knowledge.
 Be conversational, helpful and thorough.
-You also have the ability to analyze documents when the user activates them."""
+No documents are currently active. If the user asks about an uploaded file,
+document, audio file, URL, spreadsheet, presentation, or source-specific fact,
+politely explain that no document is active to discuss and ask them to activate
+the relevant item first."""
 
 
-def build_history(messages: list) -> str:
+def build_history(messages: list, include_assistant: bool = True, limit: int = 8) -> str:
     if not messages:
         return ""
     history = []
-    for msg in messages:
+    for msg in messages[-limit:]:
+        if not include_assistant and msg.get("role") != "user":
+            continue
         role = "User" if msg["role"] == "user" else "Assistant"
-        history.append(f"{role}: {msg['content']}")
+        content = (msg.get("content") or "").strip()
+        if content:
+            history.append(f"{role}: {content}")
     return "\n".join(history)
 
 
@@ -102,21 +109,30 @@ def answer(question: str, doc_ids: list = None,
     all_chunks = sorted(all_chunks, key=lambda x: x["score"], reverse=True)[:10]
 
     # Step 5 — Build messages
-    conversation = build_history(history)
+    conversation = build_history(history, include_assistant=False, limit=6)
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     if conversation:
         messages.append(HumanMessage(
-            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
+            content=(
+                "Previous user questions are provided only for conversational continuity. "
+                "They are not document evidence and must not be cited or used as facts:\n"
+                f"{conversation}"
+            )
         ))
 
     if all_chunks:
         context = build_context(all_chunks)
-        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the active documents:
+        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the currently active documents only:
 
 {context}
 
-Now answer this question using both the document excerpts AND your own knowledge where helpful:
+Answer using these active excerpts as the only document evidence. Do not mention,
+quote, cite, or rely on documents from previous chat history unless they appear
+in the active excerpts above. Use your own knowledge only as supporting
+explanation after answering the document fact.
+
+Question:
 {question}"""))
     else:
         messages.append(HumanMessage(
@@ -213,21 +229,30 @@ async def answer_stream(question: str, doc_ids: list = None,
     yield {"type": "sources", "sources": sources}
 
     # Step 4 — Build messages
-    conversation = build_history(history)
+    conversation = build_history(history, include_assistant=False, limit=6)
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     if conversation:
         messages.append(HumanMessage(
-            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
+            content=(
+                "Previous user questions are provided only for conversational continuity. "
+                "They are not document evidence and must not be cited or used as facts:\n"
+                f"{conversation}"
+            )
         ))
 
     if all_chunks:
         context = build_context(all_chunks)
-        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the active documents:
+        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the currently active documents only:
 
 {context}
 
-Now answer this question using both the document excerpts AND your own knowledge where helpful:
+Answer using these active excerpts as the only document evidence. Do not mention,
+quote, cite, or rely on documents from previous chat history unless they appear
+in the active excerpts above. Use your own knowledge only as supporting
+explanation after answering the document fact.
+
+Question:
 {question}"""))
     else:
         messages.append(HumanMessage(
