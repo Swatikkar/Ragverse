@@ -3,6 +3,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from retrieval.vector_store import query_chunks
 from cache.cache_store import get_cached_chunks, add_to_cache
 from providers import model_router
+import config
 
 SYSTEM_PROMPT = """You are Ragverse, an intelligent AI assistant.
 
@@ -76,7 +77,7 @@ def answer(question: str, doc_ids: list = None,
     cached_chunks = []
     cached_ids = set()
 
-    if session_id:
+    if session_id and config.STORAGE_MODE != "supabase":
         cached_chunks = get_cached_chunks(session_id, doc_ids, user_id=user_id)
         cached_ids = {
             item["chunk"].metadata.get("chunk_id")
@@ -93,7 +94,7 @@ def answer(question: str, doc_ids: list = None,
     )
 
     # Step 3 — Add to user's cache
-    if session_id and new_chunks:
+    if session_id and new_chunks and config.STORAGE_MODE != "supabase":
         add_to_cache(session_id, new_chunks, user_id=user_id)
 
     # Step 4 — Merge + sort
@@ -169,7 +170,7 @@ async def answer_stream(question: str, doc_ids: list = None,
     cached_chunks = []
     cached_ids = set()
 
-    if session_id:
+    if session_id and config.STORAGE_MODE != "supabase":
         cached_chunks = get_cached_chunks(session_id, doc_ids, user_id=user_id)
         cached_ids = {
             item["chunk"].metadata.get("chunk_id")
@@ -185,7 +186,7 @@ async def answer_stream(question: str, doc_ids: list = None,
         exclude_ids=cached_ids
     )
 
-    if session_id and new_chunks:
+    if session_id and new_chunks and config.STORAGE_MODE != "supabase":
         add_to_cache(session_id, new_chunks, user_id=user_id)
 
     all_chunks = cached_chunks + new_chunks

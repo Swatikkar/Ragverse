@@ -26,6 +26,8 @@ services:
         value: ragverse
       - key: JWT_SECRET_KEY
         sync: false
+      - key: JWT_EXPIRY_MINUTES
+        value: 120
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
@@ -40,3 +42,13 @@ services:
         value: groq:whisper-large-v3-turbo
       - key: EMBEDDING_MODELS
         value: gemini:gemini-embedding-001,cohere:embed-english-light-v3.0
+      - key: EMBEDDING_DIMENSION
+        value: 3072
+      - key: ENABLE_RERANKER
+        value: false
+      - key: MAX_FILE_SIZE_MB
+        value: 15
+      - key: MAX_AUDIO_SIZE_MB
+        value: 25
+      - key: PROVIDER_TIMEOUT_SECONDS
+        value: 20

@@ -5,7 +5,12 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export function getToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("ragverse_token");
+  const token = localStorage.getItem("ragverse_token");
+  if (token && isTokenExpired(token)) {
+    logout();
+    return null;
+  }
+  return token;
 }
 
 export function getUser() {
@@ -18,6 +23,33 @@ export function logout() {
   localStorage.removeItem("ragverse_token");
   localStorage.removeItem("ragverse_user");
   window.location.href = "/";
+}
+
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp && Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
+export function scheduleTokenLogout() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const delay = payload.exp * 1000 - Date.now();
+    if (delay <= 0) {
+      logout();
+      return null;
+    }
+    return window.setTimeout(logout, delay);
+  } catch {
+    logout();
+    return null;
+  }
 }
 
 function authHeaders(extra = {}) {
@@ -70,6 +102,11 @@ export function getSessionId() {
     localStorage.setItem("ragverse_session_id", sessionId);
   }
   return sessionId;
+}
+
+export function setSessionId(sessionId) {
+  if (typeof window === "undefined" || !sessionId) return;
+  localStorage.setItem("ragverse_session_id", sessionId);
 }
 
 // ── Documents ────────────────────────────────────────────────────
@@ -181,6 +218,14 @@ export async function deactivateDocument(sessionId, docId) {
 
 export async function getActiveDocuments(sessionId) {
   const res = await fetch(`${BASE_URL}/active/${sessionId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function getChatMessages(sessionId = null) {
+  const url = sessionId ? `${BASE_URL}/chat/${sessionId}` : `${BASE_URL}/chat`;
+  const res = await fetch(url, {
     headers: authHeaders(),
   });
   return handleResponse(res);

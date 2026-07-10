@@ -11,6 +11,8 @@ import config
 from auth.jwt_handler import create_access_token
 from auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from utils.local_db import get_connection, utc_now
+from utils.file_handler import delete_user_uploads
+from utils.supabase_store import delete_user_artifacts
 
 
 _supabase: Client | None = None
@@ -142,3 +144,16 @@ def login_user(data: LoginRequest) -> TokenResponse:
     if config.AUTH_PROVIDER == "supabase":
         return _login_supabase(data)
     return _login_local(data)
+
+
+def delete_user_account(user_id: str) -> None:
+    delete_user_uploads(user_id)
+    delete_user_artifacts(user_id)
+
+    if config.AUTH_PROVIDER == "supabase":
+        client = _supabase_client()
+        client.table("users").delete().eq("id", user_id).execute()
+        return
+
+    with get_connection() as conn:
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))

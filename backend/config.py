@@ -26,11 +26,13 @@ SUPABASE_BUCKET = env_value("SUPABASE_BUCKET", "ragverse")
 
 JWT_SECRET_KEY = env_value("JWT_SECRET_KEY")
 JWT_ALGORITHM = env_value("JWT_ALGORITHM", "HS256")
-JWT_EXPIRY_MINUTES = int(env_value("JWT_EXPIRY_MINUTES", "1440"))
+JWT_EXPIRY_MINUTES = int(env_value("JWT_EXPIRY_MINUTES", "120"))
 
 UPLOAD_DIR = env_value("UPLOAD_DIR", "./uploads")
 CHROMA_DIR = env_value("CHROMA_DIR", "./chroma_db")
 CACHE_DIR = env_value("CACHE_DIR", "./cache")
+EMBEDDING_DIMENSION = int(env_value("EMBEDDING_DIMENSION", "3072"))
+ENABLE_RERANKER = env_value("ENABLE_RERANKER", "false").lower() == "true"
 
 CHUNKING_STRATEGY = "recursive"
 CHUNK_SIZE = 500

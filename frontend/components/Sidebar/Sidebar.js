@@ -4,12 +4,10 @@ import { useState, useEffect } from "react";
 import FileUploader from "./FileUploader";
 import ActiveZone from "./ActiveZone";
 import DocumentList from "./DocumentList";
-import { getDocuments, getSessionId, getUser, logout } from "@/lib/api";
+import { activateDocument, getDocuments, getUser, logout } from "@/lib/api";
 
-export default function Sidebar() {
+export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
   const [documents, setDocuments] = useState([]);
-  const [activeDocs, setActiveDocs] = useState([]);
-  const sessionId = getSessionId();
   const user = getUser();
 
   useEffect(() => {
@@ -23,6 +21,14 @@ export default function Sidebar() {
     }
     fetchDocuments();
   }, []);
+
+  useEffect(() => {
+    activeDocs.forEach((doc) => {
+      activateDocument(sessionId, doc.doc_id, doc.doc_name).catch((err) => {
+        console.error("Failed to restore active document", err);
+      });
+    });
+  }, [activeDocs, sessionId]);
 
   function handleDocumentUploaded(newDoc) {
     setDocuments((prev) => [...prev, newDoc]);

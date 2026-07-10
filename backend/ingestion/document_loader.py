@@ -1,23 +1,90 @@
-from langchain_community.document_loaders import PyMuPDFLoader, Docx2txtLoader, CSVLoader, UnstructuredExcelLoader,UnstructuredPowerPointLoader
-from config import UPLOAD_DIR
+from langchain_community.document_loaders import PyMuPDFLoader, Docx2txtLoader, CSVLoader
+from langchain_core.documents import Document
+from openpyxl import load_workbook
+from pptx import Presentation
 import os
 
 LOADERS = {
     ".pdf": PyMuPDFLoader,
     ".docx": Docx2txtLoader,
     ".csv": CSVLoader,
-    ".xlsx": UnstructuredExcelLoader,
-    ".pptx": UnstructuredPowerPointLoader
 }
 
-def load_document(file_path: str,doc_id: str) -> list:
+
+def _load_xlsx(file_path: str, doc_id: str) -> list[Document]:
+    workbook = load_workbook(file_path, read_only=True, data_only=True)
+    pages = []
+
+    for sheet in workbook.worksheets:
+        rows = []
+        for row in sheet.iter_rows(values_only=True):
+            values = [str(value).strip() for value in row if value is not None and str(value).strip()]
+            if values:
+                rows.append(" | ".join(values))
+
+        if rows:
+            pages.append(
+                Document(
+                    page_content="\n".join(rows),
+                    metadata={
+                        "doc_id": doc_id,
+                        "doc_name": os.path.basename(file_path),
+                        "file_type": ".xlsx",
+                        "source_type": "document",
+                        "page_num": None,
+                        "sheet_name": sheet.title,
+                        "source": os.path.basename(file_path),
+                    },
+                )
+            )
+
+    workbook.close()
+    return pages
+
+
+def _load_pptx(file_path: str, doc_id: str) -> list[Document]:
+    presentation = Presentation(file_path)
+    pages = []
+
+    for slide_index, slide in enumerate(presentation.slides, start=1):
+        parts = []
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text:
+                text = shape.text.strip()
+                if text:
+                    parts.append(text)
+
+        if parts:
+            pages.append(
+                Document(
+                    page_content="\n".join(parts),
+                    metadata={
+                        "doc_id": doc_id,
+                        "doc_name": os.path.basename(file_path),
+                        "file_type": ".pptx",
+                        "source_type": "document",
+                        "page_num": slide_index,
+                        "slide_index": slide_index,
+                        "source": os.path.basename(file_path),
+                    },
+                )
+            )
+
+    return pages
+
+
+def load_document(file_path: str, doc_id: str) -> list:
     ext = os.path.splitext(file_path)[-1].lower()
 
-    if ext not in LOADERS:
+    if ext == ".xlsx":
+        pages = _load_xlsx(file_path, doc_id)
+    elif ext == ".pptx":
+        pages = _load_pptx(file_path, doc_id)
+    elif ext in LOADERS:
+        loader = LOADERS[ext](file_path)
+        pages = loader.load()
+    else:
         raise ValueError(f"Unsupported file type: {ext}")
-
-    loader = LOADERS[ext](file_path)
-    pages = loader.load()
 
     for i, page in enumerate(pages):
         page.metadata["doc_id"] = doc_id
@@ -39,6 +106,7 @@ def load_document(file_path: str,doc_id: str) -> list:
 
         page.metadata["source"] = os.path.basename(file_path)
 
-    print(f"Page metadata: {page.metadata}")
+    if not pages:
+        raise ValueError(f"No readable text found in {os.path.basename(file_path)}")
 
     return pages

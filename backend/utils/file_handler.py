@@ -20,6 +20,9 @@ ALLOWED_MIME_TYPES = {
     ".mp4": "video/mp4",
 }
 
+OFFICE_ZIP_EXTENSIONS = {".docx", ".xlsx", ".pptx"}
+ZIP_MIME_TYPES = {"application/zip", "application/x-zip-compressed"}
+
 
 def _looks_like_text(contents: bytes) -> bool:
     try:
@@ -67,6 +70,9 @@ def validate_file(file: UploadFile, contents: bytes) -> str:
     if ext in AUDIO_EXTENSIONS and mime and mime.startswith(("audio/", "video/")):
         return ext
 
+    if ext in OFFICE_ZIP_EXTENSIONS and (mime == allowed_mime or mime in ZIP_MIME_TYPES):
+        return ext
+
     if mime != allowed_mime:
         raise HTTPException(
             status_code=400,
@@ -97,3 +103,9 @@ def delete_upload(doc_id: str, user_id: str):
     doc_dir = os.path.join(UPLOAD_DIR, user_id, doc_id)
     if os.path.exists(doc_dir):
         shutil.rmtree(doc_dir)
+
+
+def delete_user_uploads(user_id: str):
+    user_dir = os.path.join(UPLOAD_DIR, user_id)
+    if os.path.exists(user_dir):
+        shutil.rmtree(user_dir)

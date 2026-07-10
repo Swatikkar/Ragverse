@@ -5,10 +5,10 @@ from utils.file_handler import save_upload, delete_upload
 from ingestion.orchestrator import process_document
 from ingestion.url_loader import load_url
 from ingestion.chunker import chunk_documents
-from retrieval.vector_store import store_chunks, delete_document, get_all_documents
+from retrieval.vector_store import store_chunks, delete_document
 from cache.cache_manager import deactivate_doc
 from auth.dependencies import get_current_user
-from utils.supabase_store import delete_document_artifacts, safe_persist_document
+from utils.supabase_store import delete_document_artifacts, list_documents, safe_persist_document
 import uuid
 import os
 
@@ -35,7 +35,6 @@ async def upload_document(
         result = process_document(file_path, doc_id, user_id)
 
         # Step 3 — Store chunks in user's ChromaDB collection
-        stored = store_chunks(result["chunks"], user_id)
         file_type = os.path.splitext(file_path)[-1].lower().lstrip(".")
         source_type = result["chunks"][0].metadata.get("source_type", "document") if result["chunks"] else "document"
         storage_path = f"{user_id}/{doc_id}/{os.path.basename(file_path)}"
@@ -49,8 +48,8 @@ async def upload_document(
                 "storage_path": storage_path,
             },
             [{"kind": "file", "path": file_path, "storage_path": storage_path}],
-            result["chunks"],
         )
+        stored = store_chunks(result["chunks"], user_id)
 
         return {
             "success": True,
@@ -107,7 +106,6 @@ async def ingest_url(
     try:
         pages, url_info = load_url(str(body.url), doc_id)
         chunks = chunk_documents(pages)
-        stored = store_chunks(chunks, user_id)
         storage_path = f"{user_id}/{doc_id}/extracted_url.txt"
         safe_persist_document(
             {
@@ -120,8 +118,8 @@ async def ingest_url(
                 "storage_path": storage_path,
             },
             [{"kind": "text", "text": url_info["text"], "storage_path": storage_path}],
-            chunks,
         )
+        stored = store_chunks(chunks, user_id)
 
         return {
             "success": True,
@@ -145,7 +143,7 @@ async def get_documents(current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
 
     try:
-        documents = get_all_documents(user_id)
+        documents = list_documents(user_id)
         return {
             "success": True,
             "documents": documents

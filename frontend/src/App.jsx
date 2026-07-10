@@ -2,7 +2,16 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar/Sidebar";
 import ChatWindow from "@/components/Chat/ChatWindow";
 import SourcePanel from "@/components/SourcePanel/SourcePanel";
-import { getToken, loginUser, registerUser } from "@/lib/api";
+import {
+  getActiveDocuments,
+  getChatMessages,
+  getSessionId,
+  getToken,
+  loginUser,
+  registerUser,
+  scheduleTokenLogout,
+  setSessionId as persistSessionId,
+} from "@/lib/api";
 
 function AuthCard({ mode, onAuthed, onSwitch }) {
   const isLogin = mode === "login";
@@ -133,14 +142,51 @@ function AuthCard({ mode, onAuthed, onSwitch }) {
 
 function Home() {
   const [activeSources, setActiveSources] = useState([]);
+  const [sessionId, setSessionId] = useState(getSessionId());
+  const [activeDocs, setActiveDocs] = useState([]);
+
+  useEffect(() => {
+    async function restoreLatestSession() {
+      try {
+        const chat = await getChatMessages();
+        if (chat.session_id) {
+          persistSessionId(chat.session_id);
+          setSessionId(chat.session_id);
+        } else {
+          const freshSessionId = crypto.randomUUID();
+          persistSessionId(freshSessionId);
+          setSessionId(freshSessionId);
+        }
+      } catch (err) {
+        console.error("Failed to restore latest chat session", err);
+      }
+    }
+    restoreLatestSession();
+  }, []);
+
+  useEffect(() => {
+    async function restoreActiveDocs() {
+      try {
+        const res = await getActiveDocuments(sessionId);
+        setActiveDocs(res.active_docs || []);
+      } catch (err) {
+        console.error("Failed to restore active documents", err);
+      }
+    }
+    restoreActiveDocs();
+  }, [sessionId]);
+
+  useEffect(() => {
+    localStorage.setItem("ragverse_active_docs", JSON.stringify(activeDocs));
+  }, [activeDocs]);
 
   return (
     <div className="flex h-screen overflow-hidden">
       <div className="w-72 border-r border-gray-800 shrink-0">
-        <Sidebar />
+        <Sidebar sessionId={sessionId} activeDocs={activeDocs} setActiveDocs={setActiveDocs} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ChatWindow onSourcesUpdate={setActiveSources} />
+        <ChatWindow sessionId={sessionId} activeDocs={activeDocs} onSourcesUpdate={setActiveSources} />
       </div>
       <div className="w-80 border-l border-gray-800 shrink-0">
         <SourcePanel sources={activeSources} />
@@ -156,6 +202,14 @@ export default function App() {
   useEffect(() => {
     setAuthed(Boolean(getToken()));
   }, []);
+
+  useEffect(() => {
+    if (!authed) return undefined;
+    const timer = scheduleTokenLogout();
+    return () => {
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [authed]);
 
   if (!authed) {
     return (
