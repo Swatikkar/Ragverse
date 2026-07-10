@@ -12,6 +12,39 @@ _reranker = None
 _user_stores: dict[str, Any] = {}
 
 
+def _preserve_active_doc_coverage(ranked: list[Document], candidates: list[Document], doc_ids: list | None) -> list[Document]:
+    if not doc_ids:
+        return ranked
+
+    selected_doc_ids = [str(doc_id) for doc_id in doc_ids]
+    ranked_doc_ids = {str(doc.metadata.get("doc_id")) for doc in ranked}
+    missing_doc_ids = [doc_id for doc_id in selected_doc_ids if doc_id not in ranked_doc_ids]
+    if not missing_doc_ids:
+        return ranked
+
+    covered = []
+    seen_chunks = set()
+    for doc_id in missing_doc_ids:
+        for doc in candidates:
+            if str(doc.metadata.get("doc_id")) != doc_id:
+                continue
+            chunk_id = doc.metadata.get("chunk_id") or doc.page_content
+            if chunk_id in seen_chunks:
+                continue
+            covered.append(doc)
+            seen_chunks.add(chunk_id)
+            break
+
+    for doc in ranked:
+        chunk_id = doc.metadata.get("chunk_id") or doc.page_content
+        if chunk_id in seen_chunks:
+            continue
+        covered.append(doc)
+        seen_chunks.add(chunk_id)
+
+    return covered
+
+
 def get_reranker():
     global _reranker
     if not config.ENABLE_RERANKER:
@@ -111,7 +144,7 @@ def _query_supabase_chunks(
 
     reranker = get_reranker()
     ranked = reranker.compress_documents(candidates, question) if reranker else candidates
-    ranked = ranked[:n_results]
+    ranked = _preserve_active_doc_coverage(ranked, candidates, doc_ids)[:n_results]
     return [
         {
             "chunk": doc,
@@ -167,7 +200,7 @@ def query_chunks(
     scores = {doc.page_content: 0.5 for doc in candidates}
     reranker = get_reranker()
     reranked = reranker.compress_documents(candidates, question) if reranker else candidates
-    reranked = reranked[:n_results]
+    reranked = _preserve_active_doc_coverage(reranked, candidates, doc_ids)[:n_results]
 
     return [
         {
