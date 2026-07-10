@@ -84,7 +84,6 @@ create index if not exists users_email_idx on public.users(email);
 create index if not exists documents_user_id_idx on public.documents(user_id);
 create index if not exists document_artifacts_user_doc_idx on public.document_artifacts(user_id, doc_id);
 create index if not exists document_chunks_user_doc_idx on public.document_chunks(user_id, doc_id);
-create index if not exists document_chunks_embedding_idx on public.document_chunks using hnsw (embedding extensions.vector_cosine_ops);
 create index if not exists chat_sessions_user_id_idx on public.chat_sessions(user_id);
 create index if not exists chat_messages_session_idx on public.chat_messages(session_id, created_at);
 create index if not exists active_documents_session_idx on public.active_documents(user_id, session_id);
