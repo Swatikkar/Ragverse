@@ -53,13 +53,16 @@ async def query_documents(
     try:
         ensure_chat_session(user_id, body.session_id, title=body.question[:80])
         add_chat_message(user_id, body.session_id, "user", body.question)
-        # Treat the persisted active-document table as the source of truth.
-        # Browser state can lag behind rapid activate/deactivate clicks, so
-        # trusting request doc_ids can retrieve stale or missing sources.
-        persisted_active = list_active_documents(user_id, body.session_id) if body.session_id else []
-        doc_ids = [doc["doc_id"] for doc in persisted_active]
-        if not doc_ids:
-            doc_ids = get_active_doc_ids(body.session_id, user_id=user_id) if body.session_id else (body.doc_ids or [])
+        if body.doc_ids is not None:
+            # The browser sends the current visible active set with each query.
+            # Use it as the exact query intent so rapid activate/deactivate
+            # changes cannot be masked by an older persisted session row.
+            doc_ids = list(dict.fromkeys(body.doc_ids))
+        else:
+            persisted_active = list_active_documents(user_id, body.session_id) if body.session_id else []
+            doc_ids = [doc["doc_id"] for doc in persisted_active]
+            if not doc_ids and body.session_id:
+                doc_ids = get_active_doc_ids(body.session_id, user_id=user_id)
 
         if not doc_ids:
             async def stream_chat():

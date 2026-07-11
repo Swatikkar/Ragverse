@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import FileUploader from "./FileUploader";
 import ActiveZone from "./ActiveZone";
 import DocumentList from "./DocumentList";
-import { activateDocument, getDocuments, getUser, logout } from "@/lib/api";
+import { getActiveDocuments, getDocuments, getUser, logout } from "@/lib/api";
 
 export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
   const [documents, setDocuments] = useState([]);
@@ -22,13 +22,14 @@ export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
     fetchDocuments();
   }, []);
 
-  useEffect(() => {
-    activeDocs.forEach((doc) => {
-      activateDocument(sessionId, doc.doc_id, doc.doc_name).catch((err) => {
-        console.error("Failed to restore active document", err);
-      });
-    });
-  }, [activeDocs, sessionId]);
+  async function refreshActiveDocuments() {
+    try {
+      const res = await getActiveDocuments(sessionId);
+      setActiveDocs(res.active_docs || []);
+    } catch (err) {
+      console.error("Failed to refresh active documents", err);
+    }
+  }
 
   function handleDocumentUploaded(newDoc) {
     setDocuments((prev) => [...prev, newDoc]);
@@ -37,10 +38,12 @@ export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
   function handleActivate(doc) {
     if (activeDocs.find((d) => d.doc_id === doc.doc_id)) return;
     setActiveDocs((prev) => [...prev, doc]);
+    refreshActiveDocuments();
   }
 
   function handleDeactivate(docId) {
     setActiveDocs((prev) => prev.filter((d) => d.doc_id !== docId));
+    refreshActiveDocuments();
   }
 
   function handleDelete(docId) {

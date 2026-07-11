@@ -178,6 +178,7 @@ function Home() {
 
   useEffect(() => {
     localStorage.setItem("ragverse_active_docs", JSON.stringify(activeDocs));
+    setActiveSources([]);
   }, [activeDocs]);
 
   return (
