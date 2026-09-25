@@ -83,7 +83,15 @@ Expected result: fewer vision calls, smaller installation footprint, stable chun
 
 ### Production
 
-Production commit, deployment status, health checks, and recruiter-style UI/RAG results will be appended after deployment.
+- Optimization commit: `036828a` (`Optimize retrieval streaming and ingestion`), pushed to `origin/production`.
+- Render health endpoint: HTTP 200 with `{"status":"ok"}` after deployment.
+- Public Vercel UI: reachable and rendered the sign-in screen.
+- Deployed Vercel bundle: confirmed to contain the new streaming `TextDecoder` buffer path and no old `ragverse_chat_messages` per-token local-storage path.
+- Existing disposable QA login: passed.
+- Workspace restoration: 9 documents, latest session, 30 pre-check messages, and 1 active document restored.
+- Live document-backed query against `sample1.pdf`: HTTP 200, SSE `[DONE]` received, 1 source returned, and a 106-character answer completed in 12.1 seconds.
+- Answer accuracy: returned `The main identifying fact in the active document is that the project codename is Violet Harbor [Source 1].`
+- Persistence check: latest assistant message and its single source were restored from production after the stream; total history increased to 32 messages.
 
 ## Intentionally deferred
 
