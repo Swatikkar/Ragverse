@@ -94,16 +94,6 @@ export async function loginUser(email, password) {
 
 // ── Session ──────────────────────────────────────────────────────
 
-export function getSessionId() {
-  if (typeof window === "undefined") return null;
-  let sessionId = localStorage.getItem("ragverse_session_id");
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-    localStorage.setItem("ragverse_session_id", sessionId);
-  }
-  return sessionId;
-}
-
 export function setSessionId(sessionId) {
   if (typeof window === "undefined" || !sessionId) return;
   localStorage.setItem("ragverse_session_id", sessionId);
@@ -148,7 +138,7 @@ export async function queryDocuments(question, sessionId, docIds = null, history
       question,
       session_id: sessionId,
       doc_ids: docIds,
-      history: history.map((msg) => ({
+      history: history.slice(-8).map((msg) => ({
         role: msg.role,
         content: msg.content,
       })),
@@ -163,32 +153,64 @@ export async function queryDocuments(question, sessionId, docIds = null, history
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  let eventBuffer = "";
+  let pendingText = "";
+  let flushTimer = null;
+
+  function flushText() {
+    if (flushTimer) window.clearTimeout(flushTimer);
+    flushTimer = null;
+    if (pendingText) {
+      onChunk(pendingText);
+      pendingText = "";
+    }
+  }
+
+  function queueText(content) {
+    pendingText += content;
+    if (!flushTimer) flushTimer = window.setTimeout(flushText, 40);
+  }
+
+  function processEvent(rawEvent) {
+    const data = rawEvent
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!data) return false;
+    if (data === "[DONE]") {
+      flushText();
+      return true;
+    }
+
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type === "chunk") {
+        queueText(parsed.content || "");
+      } else if (parsed.type === "sources") {
+        onSources(parsed.sources || []);
+      }
+    } catch {
+      // Keep the stream alive if a server event is malformed.
+    }
+    return false;
+  }
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    const text = decoder.decode(value);
-    const lines = text.split("\n");
-
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        if (data === "[DONE]") break;
-
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === "chunk") {
-            onChunk(parsed.content);
-          } else if (parsed.type === "sources") {
-            onSources(parsed.sources);
-          }
-        } catch (e) {
-          // skip malformed chunks
-        }
-      }
+    eventBuffer += decoder.decode(value, { stream: true });
+    const events = eventBuffer.split("\n\n");
+    eventBuffer = events.pop() || "";
+    for (const event of events) {
+      if (processEvent(event)) return;
     }
   }
+
+  eventBuffer += decoder.decode();
+  if (eventBuffer.trim()) processEvent(eventBuffer);
+  flushText();
 }
 
 // ── Activate / Deactivate ────────────────────────────────────────

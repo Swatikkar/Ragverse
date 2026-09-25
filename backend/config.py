@@ -45,6 +45,8 @@ MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_MB * 1024 * 1024
 MAX_URL_BYTES = int(env_value("MAX_URL_BYTES", "2000000"))
 URL_TIMEOUT_SECONDS = float(env_value("URL_TIMEOUT_SECONDS", "10"))
 URL_MAX_REDIRECTS = int(env_value("URL_MAX_REDIRECTS", "4"))
+MAX_IMAGES_PER_DOCUMENT = int(env_value("MAX_IMAGES_PER_DOCUMENT", "8"))
+MIN_IMAGE_BYTES = int(env_value("MIN_IMAGE_BYTES", "2048"))
 
 DOCUMENT_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".csv", ".pptx"]
 AUDIO_EXTENSIONS = [".mp3", ".wav", ".m4a", ".ogg", ".webm", ".mp4"]

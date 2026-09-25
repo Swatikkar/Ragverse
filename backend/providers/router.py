@@ -53,17 +53,25 @@ def _log(message: str):
 
 
 class ModelRouter:
+    def __init__(self):
+        self._llm_cache: dict[tuple[str, str, bool], object] = {}
+        self._embedding_cache: dict[tuple[str, str], object] = {}
+
     def routes_for_role(self, role: str) -> list[ModelRoute]:
         setting_name = ROLE_TO_SETTING.get(role, "RAG_CHAT_MODELS")
         return parse_routes(getattr(config, setting_name))
 
     def llm_for_route(self, route: ModelRoute, streaming: bool = False):
+        cache_key = (route.provider, route.model, streaming)
+        if cache_key in self._llm_cache:
+            return self._llm_cache[cache_key]
+
         if route.provider == "groq":
             if not config.GROQ_API_KEY:
                 raise ProviderError(route.provider, route.model, "GROQ_API_KEY is not configured.")
             from langchain_groq import ChatGroq
 
-            return ChatGroq(
+            model = ChatGroq(
                 model=route.model,
                 api_key=config.GROQ_API_KEY,
                 temperature=config.MODEL_TEMPERATURE,
@@ -71,29 +79,35 @@ class ModelRouter:
                 max_retries=config.PROVIDER_MAX_RETRIES,
                 streaming=streaming,
             )
+            self._llm_cache[cache_key] = model
+            return model
 
         if route.provider == "gemini":
             if not config.GEMINI_API_KEY:
                 raise ProviderError(route.provider, route.model, "GEMINI_API_KEY is not configured.")
             from langchain_google_genai import ChatGoogleGenerativeAI
 
-            return ChatGoogleGenerativeAI(
+            model = ChatGoogleGenerativeAI(
                 model=route.model,
                 google_api_key=config.GEMINI_API_KEY,
                 temperature=config.MODEL_TEMPERATURE,
                 timeout=config.PROVIDER_TIMEOUT_SECONDS,
             )
+            self._llm_cache[cache_key] = model
+            return model
 
         if route.provider == "ollama":
             from langchain_ollama import ChatOllama
 
-            return ChatOllama(
+            model = ChatOllama(
                 model=route.model,
                 base_url=config.OLLAMA_BASE_URL,
                 temperature=config.MODEL_TEMPERATURE,
                 keep_alive=300,
                 streaming=streaming,
             )
+            self._llm_cache[cache_key] = model
+            return model
 
         raise ProviderError(route.provider, route.model, f"Unsupported chat provider: {route.provider}")
 
@@ -117,6 +131,7 @@ class ModelRouter:
         errors = []
         for route in self.routes_for_role(role):
             started = time.perf_counter()
+            emitted_content = False
             try:
                 _log(f"{role}: streaming {route.label}")
                 llm = self.llm_for_route(route, streaming=True)
@@ -124,6 +139,7 @@ class ModelRouter:
                 async for chunk in llm.astream(messages):
                     content = getattr(chunk, "content", "")
                     if content:
+                        emitted_content = True
                         yield {"type": "chunk", "content": content}
                 elapsed = round(time.perf_counter() - started, 2)
                 _log(f"{role}: stream success {route.label} in {elapsed}s")
@@ -133,6 +149,13 @@ class ModelRouter:
                 error = _short_error(exc)
                 errors.append({"provider": route.provider, "model": route.model, "elapsed_seconds": elapsed, "error": error})
                 yield {"type": "provider_switch", "provider": route.provider, "model": route.model, "error": error}
+                if emitted_content:
+                    yield {
+                        "type": "error",
+                        "content": "The response stream was interrupted. Please retry your question.",
+                        "errors": errors,
+                    }
+                    return
 
         yield {"type": "error", "content": "All configured model providers failed.", "errors": errors}
 
@@ -140,24 +163,34 @@ class ModelRouter:
         errors = []
         for route in self.routes_for_role("embedding"):
             try:
+                cache_key = (route.provider, route.model)
+                if cache_key in self._embedding_cache:
+                    return self._embedding_cache[cache_key]
+
                 if route.provider == "gemini":
                     if not config.GEMINI_API_KEY:
                         raise ProviderError(route.provider, route.model, "GEMINI_API_KEY is not configured.")
                     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-                    return GoogleGenerativeAIEmbeddings(model=route.model, google_api_key=config.GEMINI_API_KEY)
+                    embeddings = GoogleGenerativeAIEmbeddings(model=route.model, google_api_key=config.GEMINI_API_KEY)
+                    self._embedding_cache[cache_key] = embeddings
+                    return embeddings
 
                 if route.provider == "cohere":
                     if not config.COHERE_API_KEY:
                         raise ProviderError(route.provider, route.model, "COHERE_API_KEY is not configured.")
                     from langchain_cohere import CohereEmbeddings
 
-                    return CohereEmbeddings(model=route.model, cohere_api_key=config.COHERE_API_KEY)
+                    embeddings = CohereEmbeddings(model=route.model, cohere_api_key=config.COHERE_API_KEY)
+                    self._embedding_cache[cache_key] = embeddings
+                    return embeddings
 
                 if route.provider == "ollama":
                     from langchain_ollama import OllamaEmbeddings
 
-                    return OllamaEmbeddings(model=route.model, base_url=config.OLLAMA_BASE_URL)
+                    embeddings = OllamaEmbeddings(model=route.model, base_url=config.OLLAMA_BASE_URL)
+                    self._embedding_cache[cache_key] = embeddings
+                    return embeddings
             except Exception as exc:
                 errors.append(f"{route.label}: {_short_error(exc)}")
 

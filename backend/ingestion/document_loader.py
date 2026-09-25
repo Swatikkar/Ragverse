@@ -101,8 +101,8 @@ def load_document(file_path: str, doc_id: str) -> list:
             page.metadata["page_num"] = None
             page.metadata["section_index"] = i
         elif ext == ".pptx":
-            page.metadata["page_num"] = None
-            page.metadata["slide_index"] = i
+            page.metadata["page_num"] = page.metadata.get("page_num", i + 1)
+            page.metadata["slide_index"] = page.metadata.get("slide_index", i + 1)
 
         page.metadata["source"] = os.path.basename(file_path)
 

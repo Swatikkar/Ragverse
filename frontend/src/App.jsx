@@ -5,7 +5,6 @@ import SourcePanel from "@/components/SourcePanel/SourcePanel";
 import {
   getActiveDocuments,
   getChatMessages,
-  getSessionId,
   getToken,
   loginUser,
   registerUser,
@@ -142,7 +141,8 @@ function AuthCard({ mode, onAuthed, onSwitch }) {
 
 function Home() {
   const [activeSources, setActiveSources] = useState([]);
-  const [sessionId, setSessionId] = useState(getSessionId());
+  const [sessionId, setSessionId] = useState(null);
+  const [initialMessages, setInitialMessages] = useState(null);
   const [activeDocs, setActiveDocs] = useState([]);
 
   useEffect(() => {
@@ -152,13 +152,19 @@ function Home() {
         if (chat.session_id) {
           persistSessionId(chat.session_id);
           setSessionId(chat.session_id);
+          setInitialMessages(chat.messages || []);
         } else {
           const freshSessionId = crypto.randomUUID();
           persistSessionId(freshSessionId);
           setSessionId(freshSessionId);
+          setInitialMessages([]);
         }
       } catch (err) {
         console.error("Failed to restore latest chat session", err);
+        const fallbackSessionId = crypto.randomUUID();
+        persistSessionId(fallbackSessionId);
+        setSessionId(fallbackSessionId);
+        setInitialMessages([]);
       }
     }
     restoreLatestSession();
@@ -173,13 +179,16 @@ function Home() {
         console.error("Failed to restore active documents", err);
       }
     }
-    restoreActiveDocs();
+    if (sessionId) restoreActiveDocs();
   }, [sessionId]);
 
   useEffect(() => {
-    localStorage.setItem("ragverse_active_docs", JSON.stringify(activeDocs));
     setActiveSources([]);
   }, [activeDocs]);
+
+  if (!sessionId || initialMessages === null) {
+    return <div className="h-screen bg-gray-950" />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -187,7 +196,12 @@ function Home() {
         <Sidebar sessionId={sessionId} activeDocs={activeDocs} setActiveDocs={setActiveDocs} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ChatWindow sessionId={sessionId} activeDocs={activeDocs} onSourcesUpdate={setActiveSources} />
+        <ChatWindow
+          sessionId={sessionId}
+          activeDocs={activeDocs}
+          initialMessages={initialMessages}
+          onSourcesUpdate={setActiveSources}
+        />
       </div>
       <div className="w-80 border-l border-gray-800 shrink-0">
         <SourcePanel sources={activeSources} />

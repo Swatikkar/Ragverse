@@ -240,11 +240,12 @@ def normalize_embedding(embedding: list[float] | None) -> list[float] | None:
         return None
     values = [float(value) for value in embedding]
     dim = config.EMBEDDING_DIMENSION
-    if len(values) == dim:
-        return values
-    if len(values) > dim:
-        return values[:dim]
-    return values + [0.0] * (dim - len(values))
+    if len(values) != dim:
+        raise ValueError(
+            f"Embedding dimension mismatch: expected {dim}, received {len(values)}. "
+            "Use one embedding model and dimension for the entire index."
+        )
+    return values
 
 
 def _chunk_row(user_id: str, chunk, embedding: list[float] | None = None) -> dict:
@@ -275,7 +276,11 @@ def upsert_document_chunks(user_id: str, chunks: list, embeddings: list[list[flo
                 if chunk.metadata.get("doc_id") and chunk.metadata.get("chunk_id")
             ]
             if rows:
-                client.table("document_chunks").upsert(rows, on_conflict="doc_id,chunk_id").execute()
+                for start in range(0, len(rows), 50):
+                    client.table("document_chunks").upsert(
+                        rows[start:start + 50],
+                        on_conflict="doc_id,chunk_id",
+                    ).execute()
             return
 
     now = utc_now()
@@ -336,7 +341,6 @@ def ensure_chat_session(user_id: str, session_id: str, title: str | None = None)
 
 
 def add_chat_message(user_id: str, session_id: str, role: str, content: str, sources: list | None = None) -> None:
-    ensure_chat_session(user_id, session_id, title=content[:80] if role == "user" else None)
     row = {
         "session_id": session_id,
         "user_id": user_id,
@@ -347,8 +351,14 @@ def add_chat_message(user_id: str, session_id: str, role: str, content: str, sou
     if config.STORAGE_MODE == "supabase":
         client = get_supabase()
         if client:
-            client.table("chat_messages").insert(row).execute()
-            client.table("chat_sessions").update({"updated_at": utc_now()}).eq("session_id", session_id).eq("user_id", user_id).execute()
+            try:
+                client.rpc("append_chat_message", {"message_row": row}).execute()
+            except Exception:
+                # Backward-compatible fallback while the additive RPC migration rolls out.
+                client.table("chat_messages").insert(row).execute()
+                client.table("chat_sessions").update({"updated_at": utc_now()}).eq(
+                    "session_id", session_id
+                ).eq("user_id", user_id).execute()
             return
 
     with get_connection() as conn:
@@ -508,11 +518,8 @@ def end_chat_session(user_id: str, session_id: str) -> None:
         )
 
 
-def safe_persist_document(metadata: dict, artifacts: list[dict], chunks: list | None = None) -> None:
-    try:
-        if config.STORAGE_MODE == "supabase":
-            _persist_supabase(metadata, artifacts, chunks)
-        else:
-            _persist_local(metadata, artifacts, chunks)
-    except Exception as exc:
-        print(f"[metadata] persistence skipped: {exc}", flush=True)
+def persist_document(metadata: dict, artifacts: list[dict], chunks: list | None = None) -> None:
+    if config.STORAGE_MODE == "supabase":
+        _persist_supabase(metadata, artifacts, chunks)
+    else:
+        _persist_local(metadata, artifacts, chunks)

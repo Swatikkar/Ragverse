@@ -7,7 +7,7 @@ router = APIRouter()
  
  
 @router.post("/register", response_model=TokenResponse)
-async def register(data: RegisterRequest):
+def register(data: RegisterRequest):
     try:
         return register_user(data)
     except HTTPException:
@@ -17,7 +17,7 @@ async def register(data: RegisterRequest):
  
  
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest):
+def login(data: LoginRequest):
     try:
         return login_user(data)
     except HTTPException:
@@ -27,7 +27,7 @@ async def login(data: LoginRequest):
 
 
 @router.delete("/me")
-async def delete_me(current_user: dict = Depends(get_current_user)):
+def delete_me(current_user: dict = Depends(get_current_user)):
     try:
         delete_user_account(current_user["user_id"])
         return {"success": True, "message": "Account and workspace deleted"}

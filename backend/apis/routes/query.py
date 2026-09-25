@@ -1,7 +1,8 @@
 # backend/api/routes/query.py
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from retrieval.rag_pipeline import chat_stream, answer_stream
 from cache.cache_manager import (
     activate_doc,
@@ -29,7 +30,7 @@ class QueryRequest(BaseModel):
     question: str
     session_id: str
     doc_ids: list[str] | None = None
-    history: list[dict] | None = []
+    history: list[dict] = Field(default_factory=list)
 
 
 class ActivateDocRequest(BaseModel):
@@ -51,15 +52,18 @@ async def query_documents(
     user_id = current_user["user_id"]
 
     try:
-        ensure_chat_session(user_id, body.session_id, title=body.question[:80])
-        add_chat_message(user_id, body.session_id, "user", body.question)
+        await run_in_threadpool(ensure_chat_session, user_id, body.session_id, body.question[:80])
+        await run_in_threadpool(add_chat_message, user_id, body.session_id, "user", body.question)
         if body.doc_ids is not None:
             # The browser sends the current visible active set with each query.
             # Use it as the exact query intent so rapid activate/deactivate
             # changes cannot be masked by an older persisted session row.
             doc_ids = list(dict.fromkeys(body.doc_ids))
         else:
-            persisted_active = list_active_documents(user_id, body.session_id) if body.session_id else []
+            persisted_active = (
+                await run_in_threadpool(list_active_documents, user_id, body.session_id)
+                if body.session_id else []
+            )
             doc_ids = [doc["doc_id"] for doc in persisted_active]
             if not doc_ids and body.session_id:
                 doc_ids = get_active_doc_ids(body.session_id, user_id=user_id)
@@ -72,7 +76,9 @@ async def query_documents(
                     answer_parts.append(chunk)
                     yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
                 yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
-                add_chat_message(user_id, body.session_id, "assistant", "".join(answer_parts), sources)
+                await run_in_threadpool(
+                    add_chat_message, user_id, body.session_id, "assistant", "".join(answer_parts), sources
+                )
                 yield "data: [DONE]\n\n"
 
             return StreamingResponse(
@@ -96,7 +102,9 @@ async def query_documents(
                     elif event.get("type") == "sources":
                         sources = event.get("sources", [])
                     yield f"data: {json.dumps(event)}\n\n"
-                add_chat_message(user_id, body.session_id, "assistant", "".join(answer_parts), sources)
+                await run_in_threadpool(
+                    add_chat_message, user_id, body.session_id, "assistant", "".join(answer_parts), sources
+                )
                 yield "data: [DONE]\n\n"
 
             return StreamingResponse(
@@ -118,8 +126,8 @@ async def activate_document(
 ):
     user_id = current_user["user_id"]
     try:
-        activate_doc(body.session_id, body.doc_id, body.doc_name, user_id=user_id)
-        activate_document_for_session(user_id, body.session_id, body.doc_id, body.doc_name)
+        await run_in_threadpool(activate_doc, body.session_id, body.doc_id, body.doc_name, user_id)
+        await run_in_threadpool(activate_document_for_session, user_id, body.session_id, body.doc_id, body.doc_name)
         return {"success": True, "message": f"{body.doc_name} activated"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -132,8 +140,8 @@ async def deactivate_document(
 ):
     user_id = current_user["user_id"]
     try:
-        deactivate_doc(body.session_id, body.doc_id, user_id=user_id)
-        deactivate_document_for_session(user_id, body.session_id, body.doc_id)
+        await run_in_threadpool(deactivate_doc, body.session_id, body.doc_id, user_id)
+        await run_in_threadpool(deactivate_document_for_session, user_id, body.session_id, body.doc_id)
         return {"success": True, "message": "Document deactivated and cache cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -146,7 +154,9 @@ async def get_active_documents(
 ):
     user_id = current_user["user_id"]
     try:
-        active_docs = list_active_documents(user_id, session_id) or get_active_docs(session_id, user_id=user_id)
+        active_docs = await run_in_threadpool(list_active_documents, user_id, session_id)
+        if not active_docs:
+            active_docs = get_active_docs(session_id, user_id=user_id)
         return {"success": True, "active_docs": active_docs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -159,8 +169,8 @@ async def end_user_session(
 ):
     user_id = current_user["user_id"]
     try:
-        end_session(session_id, user_id=user_id)
-        end_chat_session(user_id, session_id)
+        await run_in_threadpool(end_session, session_id, user_id)
+        await run_in_threadpool(end_chat_session, user_id, session_id)
         return {"success": True, "message": "Session ended and cache cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -173,7 +183,7 @@ async def get_chat_messages(
 ):
     user_id = current_user["user_id"]
     try:
-        restored_session_id, messages = list_chat_messages(user_id, session_id=session_id)
+        restored_session_id, messages = await run_in_threadpool(list_chat_messages, user_id, session_id)
         return {"success": True, "session_id": restored_session_id or session_id, "messages": messages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -185,7 +195,7 @@ async def get_latest_chat(
 ):
     user_id = current_user["user_id"]
     try:
-        session_id, messages = list_chat_messages(user_id)
+        session_id, messages = await run_in_threadpool(list_chat_messages, user_id)
         return {"success": True, "session_id": session_id, "messages": messages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

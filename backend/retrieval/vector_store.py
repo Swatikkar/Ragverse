@@ -115,14 +115,21 @@ def _query_supabase_chunks(
 
     if doc_ids:
         per_doc_k = max(2, min(4, n_results // max(1, len(doc_ids)) + 1))
-        rows = []
-        seen = set()
-        for doc_id in doc_ids:
-            for row in fetch_for_docs([doc_id], per_doc_k + len(exclude_ids)):
-                chunk_id = row.get("chunk_id")
-                if chunk_id and chunk_id not in seen:
-                    seen.add(chunk_id)
-                    rows.append(row)
+        try:
+            response = client.rpc(
+                "match_document_chunks_for_docs",
+                {
+                    "match_user_id": user_id,
+                    "match_doc_ids": doc_ids,
+                    "query_embedding": query_embedding,
+                    "per_doc_count": per_doc_k + len(exclude_ids),
+                },
+            ).execute()
+            rows = response.data or []
+        except Exception:
+            # Keep deployments functional while the additive migration rolls out.
+            candidate_count = max(n_results, per_doc_k * len(doc_ids)) + len(exclude_ids)
+            rows = fetch_for_docs(doc_ids, candidate_count)
     else:
         rows = fetch_for_docs(None, n_results + len(exclude_ids))
 

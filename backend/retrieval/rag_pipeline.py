@@ -3,6 +3,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from retrieval.vector_store import query_chunks
 from cache.cache_store import get_cached_chunks, add_to_cache
 from providers import model_router
+from starlette.concurrency import run_in_threadpool
 import config
 
 SYSTEM_PROMPT = """You are Ragverse, an intelligent AI assistant.
@@ -64,7 +65,7 @@ def build_context(chunks: list) -> str:
     return "\n\n---\n\n".join(context_blocks)
 
 
-def chat(question: str, history: list = []) -> dict:
+def chat(question: str, history: list | None = None) -> dict:
     conversation = build_history(history)
     messages = [SystemMessage(content=CHAT_SYSTEM_PROMPT)]
 
@@ -77,39 +78,46 @@ def chat(question: str, history: list = []) -> dict:
     return {"answer": response.content, "sources": []}
 
 
-def answer(question: str, doc_ids: list = None,
-           session_id: str = None, user_id: str = None, history: list = []) -> dict:
-
-    # Step 1 — Get cached chunks (scoped to user)
-    cached_chunks = []
-    cached_ids = set()
-
+def _retrieve_chunks(question: str, doc_ids: list | None, session_id: str | None, user_id: str | None) -> list:
     if session_id and config.STORAGE_MODE != "supabase":
-        cached_chunks = get_cached_chunks(session_id, doc_ids, user_id=user_id)
-        cached_ids = {
-            item["chunk"].metadata.get("chunk_id")
-            for item in cached_chunks
-        }
+        cached_chunks = get_cached_chunks(session_id, question, doc_ids, user_id=user_id)
+        if cached_chunks:
+            return cached_chunks
 
-    # Step 2 — MMR search on user's collection
-    new_chunks = query_chunks(
+    chunks = query_chunks(
         question,
         user_id=user_id,
-        n_results=8,
+        n_results=config.TOP_K_RESULTS,
         doc_ids=doc_ids,
-        exclude_ids=cached_ids
     )
+    if session_id and chunks and config.STORAGE_MODE != "supabase":
+        add_to_cache(session_id, question, doc_ids, chunks, user_id=user_id)
+    return chunks[:10]
 
-    # Step 3 — Add to user's cache
-    if session_id and new_chunks and config.STORAGE_MODE != "supabase":
-        add_to_cache(session_id, new_chunks, user_id=user_id)
 
-    # Step 4 — Merge + sort
-    all_chunks = cached_chunks + new_chunks
-    all_chunks = sorted(all_chunks, key=lambda x: x["score"], reverse=True)[:10]
+def _build_sources(chunks: list) -> list[dict]:
+    sources = []
+    for item in chunks:
+        meta = item["chunk"].metadata
+        sources.append({
+            "doc_id": meta.get("doc_id"),
+            "chunk_id": meta.get("chunk_id"),
+            "doc_name": meta.get("doc_name") or meta.get("source"),
+            "page_num": meta.get("page_num"),
+            "type": meta.get("type", "text"),
+            "source_type": meta.get("source_type", "document"),
+            "source_url": meta.get("source_url"),
+            "language": meta.get("language"),
+            "image_path": meta.get("image_path"),
+            "text_preview": item["chunk"].page_content[:150] + "...",
+            "score": item["score"],
+            "from_cache": item.get("from_cache", False),
+        })
+    return sources
 
-    # Step 5 — Build messages
-    conversation = build_history(history, include_assistant=False, limit=6)
+
+def _build_rag_messages(question: str, history: list | None, chunks: list) -> list:
+    conversation = build_history(history or [], include_assistant=False, limit=6)
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     if conversation:
@@ -121,128 +129,8 @@ def answer(question: str, doc_ids: list = None,
             )
         ))
 
-    if all_chunks:
-        context = build_context(all_chunks)
-        messages.append(HumanMessage(content=f"""Here are relevant excerpts from the currently active documents only:
-
-{context}
-
-Answer using these active excerpts as the only document evidence. Do not mention,
-quote, cite, or rely on documents from previous chat history unless they appear
-in the active excerpts above. Use your own knowledge only as supporting
-explanation after answering the document fact.
-
-Question:
-{question}"""))
-    else:
-        messages.append(HumanMessage(
-            content=f"""No relevant document excerpts found for this question.
-Answer using your own knowledge:
-{question}"""
-        ))
-
-    response, _metadata = model_router.invoke_chat("rag_chat", messages)
-
-    # Step 6 — Build sources
-    sources = []
-    for item in all_chunks:
-        meta = item["chunk"].metadata
-        sources.append({
-            "doc_id": meta.get("doc_id"),
-            "doc_name": meta.get("doc_name") or meta.get("source"),
-            "page_num": meta.get("page_num"),
-            "type": meta.get("type", "text"),
-            "source_type": meta.get("source_type", "document"),
-            "source_url": meta.get("source_url"),
-            "language": meta.get("language"),
-            "image_path": meta.get("image_path"),
-            "text_preview": item["chunk"].page_content[:150] + "...",
-            "score": item["score"],
-            "from_cache": item.get("from_cache", False)
-        })
-
-    return {"answer": response.content, "sources": sources}
-
-
-async def chat_stream(question: str, history: list = []):
-    conversation = build_history(history)
-    messages = [SystemMessage(content=CHAT_SYSTEM_PROMPT)]
-
-    if conversation:
-        messages.append(HumanMessage(
-            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
-        ))
-    messages.append(HumanMessage(content=question))
-
-    async for event in model_router.stream_chat("rag_chat", messages):
-        if event.get("type") == "chunk":
-            yield event["content"]
-
-
-async def answer_stream(question: str, doc_ids: list = None,
-                        session_id: str = None, user_id: str = None, history: list = []):
-
-    # Step 1 — Get cached chunks (scoped to user)
-    cached_chunks = []
-    cached_ids = set()
-
-    if session_id and config.STORAGE_MODE != "supabase":
-        cached_chunks = get_cached_chunks(session_id, doc_ids, user_id=user_id)
-        cached_ids = {
-            item["chunk"].metadata.get("chunk_id")
-            for item in cached_chunks
-        }
-
-    # Step 2 — Retrieve from user's collection
-    new_chunks = query_chunks(
-        question,
-        user_id=user_id,
-        n_results=8,
-        doc_ids=doc_ids,
-        exclude_ids=cached_ids
-    )
-
-    if session_id and new_chunks and config.STORAGE_MODE != "supabase":
-        add_to_cache(session_id, new_chunks, user_id=user_id)
-
-    all_chunks = cached_chunks + new_chunks
-    all_chunks = sorted(all_chunks, key=lambda x: x["score"], reverse=True)[:10]
-
-    # Step 3 — Build and send sources immediately
-    sources = []
-    for item in all_chunks:
-        meta = item["chunk"].metadata
-        sources.append({
-            "doc_id": meta.get("doc_id"),
-            "doc_name": meta.get("doc_name") or meta.get("source"),
-            "page_num": meta.get("page_num"),
-            "type": meta.get("type", "text"),
-            "source_type": meta.get("source_type", "document"),
-            "source_url": meta.get("source_url"),
-            "language": meta.get("language"),
-            "image_path": meta.get("image_path"),
-            "text_preview": item["chunk"].page_content[:150] + "...",
-            "score": item["score"],
-            "from_cache": item.get("from_cache", False)
-        })
-
-    yield {"type": "sources", "sources": sources}
-
-    # Step 4 — Build messages
-    conversation = build_history(history, include_assistant=False, limit=6)
-    messages = [SystemMessage(content=SYSTEM_PROMPT)]
-
-    if conversation:
-        messages.append(HumanMessage(
-            content=(
-                "Previous user questions are provided only for conversational continuity. "
-                "They are not document evidence and must not be cited or used as facts:\n"
-                f"{conversation}"
-            )
-        ))
-
-    if all_chunks:
-        context = build_context(all_chunks)
+    if chunks:
+        context = build_context(chunks)
         messages.append(HumanMessage(content=f"""Here are relevant excerpts from the currently active documents only:
 
 {context}
@@ -260,6 +148,50 @@ Question:
 Answer using your own knowledge:
 {question}"""
         ))
+    return messages
+
+
+def answer(question: str, doc_ids: list | None = None,
+           session_id: str | None = None, user_id: str | None = None,
+           history: list | None = None) -> dict:
+
+    all_chunks = _retrieve_chunks(question, doc_ids, session_id, user_id)
+
+    # Step 5 — Build messages
+    messages = _build_rag_messages(question, history, all_chunks)
+
+    response, _metadata = model_router.invoke_chat("rag_chat", messages)
+
+    # Step 6 — Build sources
+    return {"answer": response.content, "sources": _build_sources(all_chunks)}
+
+
+async def chat_stream(question: str, history: list | None = None):
+    conversation = build_history(history)
+    messages = [SystemMessage(content=CHAT_SYSTEM_PROMPT)]
+
+    if conversation:
+        messages.append(HumanMessage(
+            content=f"Previous conversation:\n{conversation}\n\nContinue naturally."
+        ))
+    messages.append(HumanMessage(content=question))
+
+    async for event in model_router.stream_chat("rag_chat", messages):
+        if event.get("type") == "chunk":
+            yield event["content"]
+
+
+async def answer_stream(question: str, doc_ids: list | None = None,
+                        session_id: str | None = None, user_id: str | None = None,
+                        history: list | None = None):
+
+    all_chunks = await run_in_threadpool(_retrieve_chunks, question, doc_ids, session_id, user_id)
+
+    # Step 3 — Build and send sources immediately
+    yield {"type": "sources", "sources": _build_sources(all_chunks)}
+
+    # Step 4 — Build messages
+    messages = _build_rag_messages(question, history, all_chunks)
 
     # Step 5 — Stream LLM response
     async for event in model_router.stream_chat("rag_chat", messages):

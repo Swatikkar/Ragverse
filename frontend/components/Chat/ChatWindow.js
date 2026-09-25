@@ -1,40 +1,29 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getChatMessages, queryDocuments } from "@/lib/api";
+import { queryDocuments } from "@/lib/api";
 import MessageBubble from "./MessageBubble.js";
 import ChatInput from "./ChatInput";
 
-export default function ChatWindow({ sessionId, activeDocs, onSourcesUpdate }) {
+export default function ChatWindow({ sessionId, activeDocs, initialMessages, onSourcesUpdate }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const frame = window.requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: loading ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, loading]);
 
   useEffect(() => {
-    localStorage.setItem("ragverse_chat_messages", JSON.stringify(messages));
-  }, [messages]);
-
-  useEffect(() => {
-    async function restoreMessages() {
-      try {
-        const res = await getChatMessages(sessionId);
-        if (res.messages?.length) {
-          setMessages(res.messages.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-            sources: msg.sources || [],
-          })));
-        }
-      } catch (err) {
-        console.error("Failed to restore chat messages", err);
-      }
-    }
-    restoreMessages();
-  }, [sessionId]);
+    setMessages((initialMessages || []).map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+      sources: msg.sources || [],
+    })));
+  }, [sessionId, initialMessages]);
 
   async function handleQuery(question) {
   if (!question.trim()) return;

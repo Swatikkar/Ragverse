@@ -13,25 +13,27 @@ splitter = RecursiveCharacterTextSplitter(
 
 def _make_chunk_id(doc_id: str, content: str, index: int) -> str:
     """Stable unique id based on doc_id + content + index"""
-    raw = f"{doc_id}_{index}_{content[:50]}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    raw = f"{doc_id}\0{index}\0{content}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def chunk_documents(pages: list) -> list:
     chunks = []
+    global_index = 0
 
     for page in pages:
         splits = splitter.split_documents([page])
-        for i, split in enumerate(splits):
-            split.metadata["chunk_index"] = i
+        for split in splits:
+            split.metadata["chunk_index"] = global_index
             split.metadata["type"] = split.metadata.get("type", "text")
             split.metadata["source_type"] = split.metadata.get("source_type", "document")
             split.metadata["chunk_id"] = _make_chunk_id(
                 split.metadata.get("doc_id", ""),
                 split.page_content,
-                i
+                global_index
             )
             chunks.append(split)
+            global_index += 1
 
     return chunks
 

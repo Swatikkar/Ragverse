@@ -25,7 +25,7 @@ export default function SourcePanel({ sources }) {
           </div>
         ) : (
           sources.map((source, i) => (
-            <SourceCard key={i} source={source} index={i + 1} />
+            <SourceCard key={source.chunk_id || `${source.doc_id}-${source.page_num || "none"}-${i}`} source={source} index={i + 1} />
           ))
         )}
       </div>
