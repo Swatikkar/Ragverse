@@ -11,6 +11,7 @@ import {
   scheduleTokenLogout,
   setSessionId as persistSessionId,
 } from "@/lib/api";
+import { retryAsync } from "@/lib/retry.mjs";
 
 function AuthCard({ mode, onAuthed, onSwitch }) {
   const isLogin = mode === "login";
@@ -144,11 +145,14 @@ function Home() {
   const [sessionId, setSessionId] = useState(null);
   const [initialMessages, setInitialMessages] = useState(null);
   const [activeDocs, setActiveDocs] = useState([]);
+  const [activeDocsLoading, setActiveDocsLoading] = useState(true);
+  const [activeDocsError, setActiveDocsError] = useState("");
+  const [activeDocsReload, setActiveDocsReload] = useState(0);
 
   useEffect(() => {
     async function restoreLatestSession() {
       try {
-        const chat = await getChatMessages();
+        const chat = await retryAsync(() => getChatMessages());
         if (chat.session_id) {
           persistSessionId(chat.session_id);
           setSessionId(chat.session_id);
@@ -172,15 +176,20 @@ function Home() {
 
   useEffect(() => {
     async function restoreActiveDocs() {
+      setActiveDocsLoading(true);
+      setActiveDocsError("");
       try {
-        const res = await getActiveDocuments(sessionId);
+        const res = await retryAsync(() => getActiveDocuments(sessionId));
         setActiveDocs(res.active_docs || []);
       } catch (err) {
         console.error("Failed to restore active documents", err);
+        setActiveDocsError("Could not restore active documents.");
+      } finally {
+        setActiveDocsLoading(false);
       }
     }
     if (sessionId) restoreActiveDocs();
-  }, [sessionId]);
+  }, [sessionId, activeDocsReload]);
 
   useEffect(() => {
     setActiveSources([]);
@@ -193,7 +202,14 @@ function Home() {
   return (
     <div className="flex h-screen overflow-hidden">
       <div className="w-72 border-r border-gray-800 shrink-0">
-        <Sidebar sessionId={sessionId} activeDocs={activeDocs} setActiveDocs={setActiveDocs} />
+        <Sidebar
+          sessionId={sessionId}
+          activeDocs={activeDocs}
+          setActiveDocs={setActiveDocs}
+          activeDocsLoading={activeDocsLoading}
+          activeDocsError={activeDocsError}
+          onRetryActiveDocs={() => setActiveDocsReload((value) => value + 1)}
+        />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
         <ChatWindow

@@ -2,7 +2,14 @@
 
 import { deactivateDocument } from "@/lib/api";
 
-export default function ActiveZone({ activeDocs, sessionId, onDeactivate }) {
+export default function ActiveZone({
+  activeDocs,
+  sessionId,
+  onDeactivate,
+  loading = false,
+  error = "",
+  onRetry,
+}) {
 
   async function handleDeactivate(docId) {
     try {
@@ -19,7 +26,18 @@ export default function ActiveZone({ activeDocs, sessionId, onDeactivate }) {
         Active Knowledge
       </p>
 
-      {activeDocs.length === 0 ? (
+      {loading && activeDocs.length === 0 ? (
+        <div className="border border-dashed border-gray-800 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-500">Restoring active documents…</p>
+        </div>
+      ) : error && activeDocs.length === 0 ? (
+        <div className="border border-red-500/20 bg-red-500/5 rounded-lg p-3 text-center">
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={onRetry} className="text-xs text-violet-400 hover:text-violet-300 mt-1">
+            Retry
+          </button>
+        </div>
+      ) : activeDocs.length === 0 ? (
         <div className="border border-dashed border-gray-800 rounded-lg p-3 text-center">
           <p className="text-xs text-gray-600">No active documents</p>
           <p className="text-xs text-gray-700 mt-0.5">Activate from library below</p>

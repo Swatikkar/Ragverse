@@ -17,6 +17,9 @@ export default function DocumentList({
   sessionId,
   onActivate,
   onDelete,
+  loading = false,
+  error = "",
+  onRetry,
 }) {
   async function handleActivate(doc) {
     console.log("Doc being activated:", doc); 
@@ -53,7 +56,18 @@ export default function DocumentList({
         Library
       </p>
 
-      {documents.length === 0 ? (
+      {loading && documents.length === 0 ? (
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Loading document library…
+        </p>
+      ) : error && documents.length === 0 ? (
+        <div className="text-center mt-4">
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={onRetry} className="text-xs text-violet-400 hover:text-violet-300 mt-1">
+            Retry
+          </button>
+        </div>
+      ) : documents.length === 0 ? (
         <p className="text-xs text-gray-600 text-center mt-4">
           No documents uploaded yet
         </p>

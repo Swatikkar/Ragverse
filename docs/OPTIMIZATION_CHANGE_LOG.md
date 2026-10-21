@@ -97,3 +97,21 @@ Expected result: fewer vision calls, smaller installation footprint, stable chun
 
 - An approximate pgvector index was not added in this rollout. The current vectors are 3,072 dimensions, and changing the storage/index representation safely requires a planned re-embedding migration and retrieval benchmark against existing production data.
 - The stale 923 MB `backend/denv` folder was not deleted automatically. It is ignored by Git and contains local-only files; recreate it first, then remove it as a separate local cleanup.
+
+## 2026-10-21 — Free-tier cold-start recovery
+
+### Problem observed
+
+- A recruiter-style production login succeeded while the free Render backend was still stabilizing.
+- The first document-library and active-document requests returned `Server disconnected`, so the UI incorrectly showed an empty workspace until the page was refreshed.
+
+### Changes and reasons
+
+- Added bounded exponential retry for chat, library, and active-document restoration. Transient network, timeout, rate-limit, and server errors retry up to five attempts with a maximum five-second delay; authentication and other client errors fail immediately.
+- Added HTTP status metadata to frontend API errors so retry decisions are based on response class instead of retrying every failure.
+- Added loading states so the UI no longer presents temporary missing data as an empty library or an inactive workspace.
+- Added an explicit Retry action after all automatic attempts fail, avoiding a required full-page refresh.
+- Added dependency-free Node tests for successful recovery, exponential delays, and non-retryable errors.
+- Configured Vite's development dependency scanner to parse the existing JSX-in-`.js` components, restoring local `npm run dev` startup while leaving production output unchanged.
+
+Expected result: free-tier cold starts recover automatically without misleading users or requiring a manual browser refresh.

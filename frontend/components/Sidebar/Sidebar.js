@@ -5,22 +5,43 @@ import FileUploader from "./FileUploader";
 import ActiveZone from "./ActiveZone";
 import DocumentList from "./DocumentList";
 import { getDocuments, getUser, logout } from "@/lib/api";
+import { retryAsync } from "@/lib/retry.mjs";
 
-export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
+export default function Sidebar({
+  sessionId,
+  activeDocs,
+  setActiveDocs,
+  activeDocsLoading,
+  activeDocsError,
+  onRetryActiveDocs,
+}) {
   const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState("");
+  const [documentsReload, setDocumentsReload] = useState(0);
   const user = getUser();
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchDocuments() {
+      setDocumentsLoading(true);
+      setDocumentsError("");
       try {
-        const res = await getDocuments();
-        setDocuments(res.documents || []);
+        const res = await retryAsync(() => getDocuments());
+        if (!cancelled) setDocuments(res.documents || []);
       } catch (err) {
         console.error("Failed to fetch documents", err);
+        if (!cancelled) setDocumentsError("Could not load your document library.");
+      } finally {
+        if (!cancelled) setDocumentsLoading(false);
       }
     }
     fetchDocuments();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [documentsReload]);
 
   function handleDocumentUploaded(newDoc) {
     setDocuments((prev) => [...prev, newDoc]);
@@ -70,6 +91,9 @@ export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
           activeDocs={activeDocs}
           sessionId={sessionId}
           onDeactivate={handleDeactivate}
+          loading={activeDocsLoading}
+          error={activeDocsError}
+          onRetry={onRetryActiveDocs}
         />
       </div>
 
@@ -81,6 +105,9 @@ export default function Sidebar({ sessionId, activeDocs, setActiveDocs }) {
           sessionId={sessionId}
           onActivate={handleActivate}
           onDelete={handleDelete}
+          loading={documentsLoading}
+          error={documentsError}
+          onRetry={() => setDocumentsReload((value) => value + 1)}
         />
       </div>
 

@@ -23,4 +23,11 @@ export default defineConfig({
       "@": path.resolve(__dirname),
     },
   },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: {
+        ".js": "jsx",
+      },
+    },
+  },
 });
