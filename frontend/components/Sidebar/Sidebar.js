@@ -64,7 +64,6 @@ export default function Sidebar({
   return (
     <div className="flex flex-col h-full bg-gray-950">
 
-      {/* Logo + Welcome */}
       <div className="p-4 border-b border-gray-800">
         <h1 className="text-xl font-bold text-white tracking-tight">
           Rag<span className="text-violet-500">verse</span>
@@ -77,7 +76,6 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* File Uploader */}
       <div className="p-3 border-b border-gray-800">
         <FileUploader
           sessionId={sessionId}
@@ -85,7 +83,6 @@ export default function Sidebar({
         />
       </div>
 
-      {/* Active Zone */}
       <div className="p-3 border-b border-gray-800">
         <ActiveZone
           activeDocs={activeDocs}
@@ -97,7 +94,6 @@ export default function Sidebar({
         />
       </div>
 
-      {/* Document Library */}
       <div className="flex-1 overflow-y-auto p-3">
         <DocumentList
           documents={documents}
@@ -111,7 +107,6 @@ export default function Sidebar({
         />
       </div>
 
-      {/* Logout */}
       <div className="p-3 border-t border-gray-800">
         <button
           onClick={logout}

@@ -1,4 +1,3 @@
-# backend/utils/file_handler.py
 import os
 import shutil
 import filetype
@@ -86,7 +85,6 @@ async def save_upload(file: UploadFile, doc_id: str, user_id: str) -> str:
     contents = await file.read()
     validate_file(file, contents)
 
-    # Scoped by user_id/doc_id
     doc_dir = os.path.join(UPLOAD_DIR, user_id, doc_id)
     os.makedirs(doc_dir, exist_ok=True)
 

@@ -1,4 +1,3 @@
-# backend/ingestion/image_extractor.py
 import fitz
 import os
 import base64
@@ -11,7 +10,6 @@ from config import MAX_IMAGES_PER_DOCUMENT, MIN_IMAGE_BYTES, UPLOAD_DIR
 def extract_images(file_path: str, doc_id: str, user_id: str) -> list:
     ext = os.path.splitext(file_path)[-1].lower()
 
-    # Scoped by user_id/doc_id
     image_dir = os.path.join(UPLOAD_DIR, user_id, doc_id, "images")
     os.makedirs(image_dir, exist_ok=True)
 

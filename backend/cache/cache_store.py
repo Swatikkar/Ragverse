@@ -1,21 +1,9 @@
-# backend/cache/cache_store.py
 from __future__ import annotations
 
 from datetime import datetime
 from hashlib import sha256
 from threading import RLock
 from time import monotonic
-
-# Cache structure:
-# {
-#   "{user_id}:{session_id}": {
-#       doc_id: {
-#           "chunks": [...],
-#           "activated_at": datetime,
-#           "last_accessed": datetime
-#       }
-#   }
-# }
 
 _cache: dict = {}
 _lock = RLock()

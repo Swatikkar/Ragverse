@@ -1,4 +1,3 @@
-# backend/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +16,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS allows the React/Vite frontend to talk to FastAPI.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -33,10 +31,8 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Serve uploaded images statically
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# Routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(upload_router, prefix="/api", tags=["upload"])
 app.include_router(query_router, prefix="/api", tags=["query"])

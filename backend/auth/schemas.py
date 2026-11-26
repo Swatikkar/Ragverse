@@ -1,10 +1,8 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
- 
- 
-# ── Request schemas ──────────────────────────────────────────────
- 
+
+
 class RegisterRequest(BaseModel):
     full_name: str
     email: EmailStr
@@ -14,10 +12,8 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
- 
- 
-# ── Response schemas ─────────────────────────────────────────────
- 
+
+
 class UserResponse(BaseModel):
     id: str
     email: str

@@ -1,7 +1,4 @@
-// frontend/lib/api.js
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-
-// ── Auth helpers ─────────────────────────────────────────────────
 
 export function getToken() {
   if (typeof window === "undefined") return null;
@@ -74,8 +71,6 @@ async function handleResponse(res) {
   return res.json();
 }
 
-// ── Auth API ─────────────────────────────────────────────────────
-
 export async function registerUser(full_name, email, password) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
@@ -94,14 +89,10 @@ export async function loginUser(email, password) {
   return handleResponse(res);
 }
 
-// ── Session ──────────────────────────────────────────────────────
-
 export function setSessionId(sessionId) {
   if (typeof window === "undefined" || !sessionId) return;
   localStorage.setItem("ragverse_session_id", sessionId);
 }
-
-// ── Documents ────────────────────────────────────────────────────
 
 export async function uploadDocument(file) {
   const formData = new FormData();
@@ -129,8 +120,6 @@ export async function deleteDocument(docId, sessionId) {
   });
   return handleResponse(res);
 }
-
-// ── Query ────────────────────────────────────────────────────────
 
 export async function queryDocuments(question, sessionId, docIds = null, history = [], onChunk, onSources) {
   const response = await fetch(`${BASE_URL}/query`, {
@@ -193,7 +182,6 @@ export async function queryDocuments(question, sessionId, docIds = null, history
         onSources(parsed.sources || []);
       }
     } catch {
-      // Keep the stream alive if a server event is malformed.
     }
     return false;
   }
@@ -214,8 +202,6 @@ export async function queryDocuments(question, sessionId, docIds = null, history
   if (eventBuffer.trim()) processEvent(eventBuffer);
   flushText();
 }
-
-// ── Activate / Deactivate ────────────────────────────────────────
 
 export async function activateDocument(sessionId, docId, docName) {
   const res = await fetch(`${BASE_URL}/activate`, {

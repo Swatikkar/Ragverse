@@ -127,7 +127,6 @@ def _query_supabase_chunks(
             ).execute()
             rows = response.data or []
         except Exception:
-            # Keep deployments functional while the additive migration rolls out.
             candidate_count = max(n_results, per_doc_k * len(doc_ids)) + len(exclude_ids)
             rows = fetch_for_docs(doc_ids, candidate_count)
     else:

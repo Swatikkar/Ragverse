@@ -1,16 +1,5 @@
-# backend/cache/cache_manager.py
 from cache.cache_store import clear_doc_cache, clear_session_cache, get_cache_stats
 from datetime import datetime
-
-# Active docs structure:
-# {
-#   "{user_id}:{session_id}": {
-#       doc_id: {
-#           "activated_at": datetime,
-#           "doc_name": str
-#       }
-#   }
-# }
 
 _active_docs: dict = {}
 

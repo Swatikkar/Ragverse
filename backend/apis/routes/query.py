@@ -1,4 +1,3 @@
-# backend/api/routes/query.py
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -55,9 +54,6 @@ async def query_documents(
         await run_in_threadpool(ensure_chat_session, user_id, body.session_id, body.question[:80])
         await run_in_threadpool(add_chat_message, user_id, body.session_id, "user", body.question)
         if body.doc_ids is not None:
-            # The browser sends the current visible active set with each query.
-            # Use it as the exact query intent so rapid activate/deactivate
-            # changes cannot be masked by an older persisted session row.
             doc_ids = list(dict.fromkeys(body.doc_ids))
         else:
             persisted_active = (

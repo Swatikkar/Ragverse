@@ -2,7 +2,6 @@ fastapi
 uvicorn
 email-validator
 pymupdf
-# chromadb 
 langchain-chroma
 langchain-ollama
 python-multipart

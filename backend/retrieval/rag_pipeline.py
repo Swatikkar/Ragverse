@@ -1,4 +1,3 @@
-# backend/retrieval/rag_pipeline.py
 from langchain_core.messages import HumanMessage, SystemMessage
 from retrieval.vector_store import query_chunks
 from cache.cache_store import get_cached_chunks, add_to_cache
@@ -157,12 +156,10 @@ def answer(question: str, doc_ids: list | None = None,
 
     all_chunks = _retrieve_chunks(question, doc_ids, session_id, user_id)
 
-    # Step 5 — Build messages
     messages = _build_rag_messages(question, history, all_chunks)
 
     response, _metadata = model_router.invoke_chat("rag_chat", messages)
 
-    # Step 6 — Build sources
     return {"answer": response.content, "sources": _build_sources(all_chunks)}
 
 
@@ -187,13 +184,10 @@ async def answer_stream(question: str, doc_ids: list | None = None,
 
     all_chunks = await run_in_threadpool(_retrieve_chunks, question, doc_ids, session_id, user_id)
 
-    # Step 3 — Build and send sources immediately
     yield {"type": "sources", "sources": _build_sources(all_chunks)}
 
-    # Step 4 — Build messages
     messages = _build_rag_messages(question, history, all_chunks)
 
-    # Step 5 — Stream LLM response
     async for event in model_router.stream_chat("rag_chat", messages):
         if event.get("type") == "chunk":
             yield {"type": "chunk", "content": event["content"]}

@@ -354,7 +354,6 @@ def add_chat_message(user_id: str, session_id: str, role: str, content: str, sou
             try:
                 client.rpc("append_chat_message", {"message_row": row}).execute()
             except Exception:
-                # Backward-compatible fallback while the additive RPC migration rolls out.
                 client.table("chat_messages").insert(row).execute()
                 client.table("chat_sessions").update({"updated_at": utc_now()}).eq(
                     "session_id", session_id

@@ -83,7 +83,6 @@ export default function DocumentList({
               }`}
             >
               <div className="flex items-center justify-between">
-                {/* Doc info */}
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-sm shrink-0">
                     {getIcon(doc.file_type)}
@@ -91,7 +90,6 @@ export default function DocumentList({
                   <p className="text-xs text-gray-300 truncate">{doc.doc_name}</p>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center gap-1.5 ml-2 shrink-0">
                   {!isActive(doc.doc_id) ? (
                     <button

@@ -97,7 +97,6 @@ export default function FileUploader({ sessionId, onUploaded }) {
         Upload
       </p>
 
-      {/* Drop Zone */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -114,7 +113,6 @@ export default function FileUploader({ sessionId, onUploaded }) {
         )}
       </div>
 
-      {/* Hidden Input */}
       <input
         ref={inputRef}
         type="file"
@@ -123,7 +121,6 @@ export default function FileUploader({ sessionId, onUploaded }) {
         className="hidden"
       />
 
-      {/* Error */}
       {error && (
         <p className="text-xs text-red-400 mt-2">{error}</p>
       )}

@@ -1,4 +1,3 @@
-# backend/api/routes/upload.py
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel, HttpUrl
 from starlette.concurrency import run_in_threadpool
@@ -41,13 +40,10 @@ async def upload_document(
     user_id = current_user["user_id"]
 
     try:
-        # Step 1 — Save file to disk (scoped by user_id/doc_id)
         file_path = await save_upload(file, doc_id, user_id)
 
-        # Step 2 — Process document (extract, chunk, describe images)
         result = await run_in_threadpool(process_document, file_path, doc_id, user_id)
 
-        # Step 3 — Store chunks in user's ChromaDB collection
         file_type = os.path.splitext(file_path)[-1].lower().lstrip(".")
         source_type = result["chunks"][0].metadata.get("source_type", "document") if result["chunks"] else "document"
         storage_path = f"{user_id}/{doc_id}/{os.path.basename(file_path)}"

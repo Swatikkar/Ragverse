@@ -31,7 +31,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
   setMessages((prev) => [...prev, { role: "user", content: question }]);
   setLoading(true);
 
-  // Add empty assistant message that will be filled as stream comes in
   setMessages((prev) => [...prev, { role: "assistant", content: "", sources: [] }]);
 
   try {
@@ -40,7 +39,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
       sessionId,
       activeDocs.map((doc) => doc.doc_id),
       messages,
-      // onChunk — append each chunk to last message
       (chunk) => {
         setMessages((prev) => {
           const updated = [...prev];
@@ -52,7 +50,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
           return updated;
         });
       },
-      // onSources — update sources when received
       (sources) => {
         setMessages((prev) => {
           const updated = [...prev];
@@ -80,7 +77,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
 
   return (
     <div className="flex flex-col h-full bg-gray-950">
-      {/* Header */}
       <div className="px-6 py-4 border-b border-gray-800">
         <h2 className="text-sm font-semibold text-gray-300">Research Chat</h2>
         <p className="text-xs text-gray-600 mt-0.5">
@@ -88,7 +84,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
         </p>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -103,7 +98,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
           ))
         )}
 
-        {/* Loading indicator */}
         {loading && (
           <div className="flex gap-1.5 items-center">
             <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" />
@@ -115,7 +109,6 @@ export default function ChatWindow({ sessionId, activeDocs, initialMessages, onS
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="px-6 py-4 border-t border-gray-800">
         <ChatInput onSubmit={handleQuery} loading={loading} />
       </div>
